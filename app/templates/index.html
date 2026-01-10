@@ -1,11 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
-<body>
-  
-</body>
-</html>
+{% extends 'base.html' %}
+
+{% block title %}NoSocial FileShare — Login / Register{% endblock %}
+
+{% block content %}
+  <div style="display:flex;min-height:70vh;align-items:center;justify-content:center;">
+    <section class="auth-card" style="max-width:420px;width:100%">
+      <h2 style="margin-top:0;margin-bottom:8px">Login or Register</h2>
+      <p style="margin:0 0 12px;color:var(--muted)">Enter your username and password, then choose an action.</p>
+
+      <div class="mode-switch" style="margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:12px">
+        <button id="mode-toggle" class="switch" type="button" aria-pressed="false" aria-label="Toggle login or register">
+          <span class="switch-track">
+            <span class="switch-option login">Log In</span>
+            <span class="switch-option register">Register</span>
+            <span class="switch-knob"></span>
+          </span>
+        </button>
+      </div>
+
+      <form id="auth-form" action="/login" method="post" novalidate>
+        <label class="sr-only">Username</label>
+        <input name="username" type="text" placeholder="Username" required>
+
+        <label class="sr-only">Password</label>
+        <input id="password" name="password" type="password" placeholder="Password" required>
+
+        <div id="confirm-row" class="hidden">
+          <label class="sr-only">Confirm password</label>
+          <input id="confirm" name="confirm_password" type="password" placeholder="Confirm password">
+        </div>
+
+        <div id="auth-error" class="error-message" aria-live="polite"></div>
+
+        <div style="display:flex;gap:10px">
+          <button id="submit-btn" type="submit" class="btn primary">Log In</button>
+        </div>
+      </form>
+    </section>
+  </div>
+{% endblock %}

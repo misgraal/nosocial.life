@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import RedirectResponse
 
 
 router = APIRouter()
@@ -8,12 +9,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 
-@router.get("/")
+@router.post("/register")
 async def main(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request
-        }
-    )
+    return RedirectResponse("/app", status_code=303)
 

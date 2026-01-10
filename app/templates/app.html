@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}NoSocial Files{% endblock %}
+
+{% block content %}
+  {% set user_root = request.query_params.get('username') or request.cookies.get('username') or 'My Drive' %}
+  <div class="drive-shell">
+    <aside class="drive-sidebar">
+      <div class="drive-section">
+        <div class="drive-section-title">Folders</div>
+        <ul class="folder-tree">
+          <li class="tree-node expanded active">
+            <div class="tree-item">
+              <span class="tree-caret"></span>
+              <span class="tree-icon"></span>
+              <span class="tree-label">{{ user_root }}</span>
+            </div>
+            <ul class="tree-children">
+              <li class="tree-node">
+                <div class="tree-item">
+                  <span class="tree-caret empty"></span>
+                  <span class="tree-icon"></span>
+                  <span class="tree-label">Projects</span>
+                </div>
+              </li>
+              <li class="tree-node">
+                <div class="tree-item">
+                  <span class="tree-caret empty"></span>
+                  <span class="tree-icon"></span>
+                  <span class="tree-label">Screenshots</span>
+                </div>
+              </li>
+              <li class="tree-node expanded">
+                <div class="tree-item">
+                  <span class="tree-caret"></span>
+                  <span class="tree-icon"></span>
+                  <span class="tree-label">Documents</span>
+                </div>
+                <ul class="tree-children">
+                  <li class="tree-node">
+                    <div class="tree-item">
+                      <span class="tree-caret empty"></span>
+                      <span class="tree-icon"></span>
+                      <span class="tree-label">Work</span>
+                    </div>
+                  </li>
+                  <li class="tree-node">
+                    <div class="tree-item">
+                      <span class="tree-caret empty"></span>
+                      <span class="tree-icon"></span>
+                      <span class="tree-label">Personal</span>
+                    </div>
+                  </li>
+                </ul>
+              </li>
+              <li class="tree-node">
+                <div class="tree-item">
+                  <span class="tree-caret empty"></span>
+                  <span class="tree-icon"></span>
+                  <span class="tree-label">Archive</span>
+                </div>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <section class="drive-main">
+      <div class="drive-toolbar">
+        <div class="drive-breadcrumbs">
+          <span class="crumb">This PC</span>
+          <span class="crumb-sep">></span>
+          <span class="crumb">Documents</span>
+          <span class="crumb-sep">></span>
+          <span class="crumb current">{{ user_root }}</span>
+        </div>
+        <div class="drive-toolbar-right">
+          <div class="drive-search">
+            <input id="file-search" type="search" placeholder="Search in Drive">
+          </div>
+          <div class="drive-view">
+            <button class="icon-btn active" type="button" aria-label="Grid view">Grid</button>
+            <button class="icon-btn" type="button" aria-label="List view">List</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="drive-actions">
+        <div class="drive-filters">
+          <button class="drive-chip active" type="button">All</button>
+          <button class="drive-chip" type="button">Folders</button>
+          <button class="drive-chip" type="button">Images</button>
+          <button class="drive-chip" type="button">Docs</button>
+          <button class="drive-chip" type="button">Recent</button>
+        </div>
+        <div class="drive-cta">
+          <button id="new-folder" class="btn secondary" type="button">New folder</button>
+          <button id="upload-btn" class="btn primary" type="button">Upload</button>
+        </div>
+      </div>
+
+      <div id="files-list" class="drive-grid">
+        {% for i in range(6) %}
+        <div class="drive-tile folder{% if i == 1 %} selected{% endif %}">
+          <div class="tile-thumb folder">Folder</div>
+          <div class="tile-meta">
+            <div class="tile-name">Folder_{{ i + 1 }}</div>
+            <div class="tile-sub">Updated today</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% for i in range(24) %}
+        <div class="drive-tile file{% if i == 8 %} selected{% endif %}">
+          <div class="tile-thumb image">PNG</div>
+          <div class="tile-meta">
+            <div class="tile-name">screenshot_{{ i + 1 }}.png</div>
+            <div class="tile-sub">2.3 MB - Modified today</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="drive-preview">
+      <div class="preview-card">
+        <div class="preview-title">Preview</div>
+        <div class="preview-body">
+          <div class="preview-empty">Select a file to preview.</div>
+        </div>
+      </div>
+      <div class="preview-card">
+        <div class="preview-title">Details</div>
+        <div class="preview-body">
+          <div class="preview-row">
+            <span class="preview-label">Name</span>
+            <span class="preview-value">screenshot_19.png</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Type</span>
+            <span class="preview-value">PNG image</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Size</span>
+            <span class="preview-value">2.3 MB</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Modified</span>
+            <span class="preview-value">Today, 14:10</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/tree.js') }}"></script>
+{% endblock %}

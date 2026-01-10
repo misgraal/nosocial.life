@@ -1,7 +1,9 @@
 from pydantic import BaseModel
 
-class checkRequest(BaseModel):
-    number: int
+class loginRequest(BaseModel):
+    username: str
+    password: str
+    confirm_password: str
 
-class checkResponse(BaseModel):
+class loginResponse(BaseModel):
     result: bool
