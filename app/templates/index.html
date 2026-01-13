@@ -30,7 +30,9 @@
           <input id="confirm" name="confirm_password" type="password" placeholder="Confirm password">
         </div>
 
-        <div id="auth-error" class="error-message" aria-live="polite"></div>
+        <div id="auth-error" class="error-message" aria-live="polite">
+          {{error}}
+        </div>
 
         <div style="display:flex;gap:10px">
           <button id="submit-btn" type="submit" class="btn primary">Log In</button>

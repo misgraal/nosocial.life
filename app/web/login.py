@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Form
 from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
-
+from app.services.login import login
 
 
 router = APIRouter()
@@ -16,6 +16,7 @@ async def main(
     password: str = Form(...),
     confirm_password: str | None = Form(None),
 ):
-    if password == "123":
+    result = await login(username, password)
+    if result.success == True:
         return RedirectResponse("/app", status_code=303)
     else: return RedirectResponse("/", status_code=303)
