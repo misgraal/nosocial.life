@@ -12,6 +12,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.post("/register")
 async def main(
+    request: Request,
     username: str = Form(...),
     password: str = Form(...),
     confirm_password: str | None = Form(None),
@@ -20,5 +21,12 @@ async def main(
     if result.success == True:
         return RedirectResponse("/app", status_code=303)
     else: 
-        return RedirectResponse(f"/?error={result.error}", status_code=303)
+        error = "Passwords do not match" if result.error == 1 else "User already exists"
+        return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "error": error
+        }
+    )
 

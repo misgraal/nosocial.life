@@ -41,3 +41,9 @@
     </section>
   </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+  window.__AUTH_ERROR__ = "{{ error|e }}";
+</script>
+{% endblock %}

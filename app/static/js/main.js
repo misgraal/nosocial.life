@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const submitBtn = document.getElementById('submit-btn');
   const errorBox = document.getElementById('auth-error');
   const themeToggle = document.getElementById('theme-toggle');
+  console.log(window.__AUTH_ERROR__);
 
   if(email){ email.focus(); }
 
@@ -36,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function(){
       confirmRow.classList.add('hidden');
       submitBtn.textContent = 'Log In';
       form.action = '/login';
-      errorBox.textContent = '';
+      //errorBox.textContent = '';
       confirmInput.removeAttribute('required');
     } else {
       // visually set switch to on (register)
@@ -44,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function(){
       confirmRow.classList.remove('hidden');
       submitBtn.textContent = 'Register';
       form.action = '/register';
+      //errorBox.textContent = window.__AUTH_ERROR__;
       confirmInput.setAttribute('required','');
     }
   }

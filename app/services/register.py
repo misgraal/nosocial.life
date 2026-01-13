@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from app.db.register import *
+from app.security.passwords import hash_password
 
 @dataclass
 class RegisterResult:
@@ -14,6 +15,6 @@ async def register(username, password, confirm_password):
     elif await check_user(username) != None:
         return RegisterResult(False, 2) # user already exists
     else: 
-        print(await add_user(username, password))
+        await add_user(username, hash_password(password))
         return RegisterResult(True, 0)
     
