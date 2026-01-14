@@ -1,0 +1,31 @@
+IZMANTOTĀS TEHNOLOĢIJAS
+======================
+
+1) Backend
+----------
+- Python
+- FastAPI
+- asyncmy — asinhronam darbam ar MySQL
+- passlib — paroļu hešošanai
+- Jinja — HTML šabloni
+
+2) Frontend
+-----------
+- HTML
+- CSS
+- JavaScript — File Explorer UI funkcionalitātei
+
+3) Datu bāze
+------------
+- MySQL — lietotāji, faili, mapes, metadati
+
+4) Serveris un izvietošana
+--------------------------
+- Ubuntu Linux — mājas serveris
+- Domēns: nosocial.life
+- HTTPS piekļuve attālinātam savienojumam
+
+5) Multimediju daļa
+-------------------
+- DLNA/UPnP Home Media Server funkcija
+  (MP4 faili no “Movies” mapes)

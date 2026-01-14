@@ -1,0 +1,22 @@
+2. semestra plāns:
+	-) Janvāra beigas specifikācija un darba plāns
+		-) idejas apraksts (max 500 vārdi)......................................... +
+		-) problēmas analīze (min 100, max 300 vārdi).............................. +
+			* mērķauditorija/lietotāji
+			* kāpēc vērts risinājumu izstrādāt
+		-) ER modelis relāciju DB vismaz 3 tabulas.................................. 
+		-) Izmantotās tehnoloģijas.................................................. +
+		-) īss plāns ~10 darba nedēļām (tabula: darba apraksts, datums, autors)..... +
+		-) github repozitorijs (uz grupu viens)..................................... +
+		-) piegādes formāts (lietotne, mobilā lietotne, mājaslapa, ................. +
+
+
+
+	-) Februāris - progresa ziņojums
+		-) mašīnmācīšanās
+	-) Marta beigas testēšana:
+		- instrukcijas projekta uzstādīšanai un palaišanai
+		- vienību, integrāciju, akcepttestus
+	-) Aprīļa beigas uzlikt risinājumu uz servera
+		github actions (uzbūvē docker image)
+		-) Dokumentācija (iesniegšana reizē ar Demo dienu)

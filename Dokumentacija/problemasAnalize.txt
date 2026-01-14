@@ -1,0 +1,55 @@
+PROBLĒMAS ANALĪZE
+=================
+
+Mūsdienās cilvēki uzkrāj lielu daudzumu digitālo datu: dokumentus, foto, video, projektu failus un rezerves kopijas.
+Bieži šie faili glabājas dažādās ierīcēs (telefonos, datoros, ārējos diskos), kas sarežģī to pārvaldību un palielina
+datu pazaudēšanas risku.
+
+Komerciālie mākoņpakalpojumi piedāvā vienkāršu failu sinhronizāciju, bet tie var būt maksas, ierobežot krātuves apjomu
+vai radīt privātuma jautājumus, jo dati faktiski tiek glabāti trešo pušu serveros.
+
+NoSocial.life risina šo problēmu, piedāvājot mājas mākoņkrātuvi, kur lietotājs pats kontrolē datu glabāšanu un servera
+infrastruktūru. Turklāt projekts piedāvā vienotu vidi failu pārvaldībai ar attālinātu piekļuvi un lokālā tīkla
+multimediju iespējām.
+
+
+MĒRĶAUDITORIJA / LIETOTĀJI
+=========================
+
+NoSocial.life paredzēts mājas lietotājiem, kuri:
+
+ • vēlas glabāt failus vienā drošā vietā;
+ • vēlas piekļūt saviem datiem no jebkuras ierīces un vietas;
+ • nevēlas maksāt par komerciālu mākoņpakalpojumu;
+ • vēlas risinājumu ar iespēju to uzstādīt savā serverī (piemēram, uz veca datora vai mājas NAS).
+
+
+LIETOTĀJU TIPI SISTĒMĀ
+======================
+
+Admin
+ - pārvalda lietotājus, servera konfigurāciju un piekļuves tiesības.
+
+User
+ - ikdienas lietotājs, kas augšupielādē un lejupielādē savus failus.
+
+
+KĀPĒC VĒRTS RISINĀJUMU IZSTRĀDĀT
+===============================
+
+Šāda risinājuma izstrāde ir vērtīga, jo tā apvieno vairākas reālas praktiskās vajadzības vienā projektā:
+
+ • privāta datu glabāšana bez trešo pušu ietekmes;
+ • piekļuve failiem attālināti caur internetu;
+ • iespēja izmantot serveri kā multimediju avotu (filmu skatīšanās TV ar DLNA/UPnP);
+ • elastīga krātuves mērogošana atkarībā no pieejamajiem diskiem;
+ • open-source pieeja ļauj projektam attīstīties un tikt pielāgotam dažādiem lietošanas scenārijiem.
+
+Tāpat projekts ļauj padziļināti apgūt vairākas programmēšanas un sistēmu izstrādes tēmas, piemēram:
+
+ • autentifikāciju;
+ • failu sistēmas loģiku;
+ • datubāzes izmantošanu;
+ • tīmekļa UI;
+ • drošību;
+ • servera izvietošanu.
