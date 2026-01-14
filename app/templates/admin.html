@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block head %}
+  <style>
+    .admin-shell{
+      display:grid;
+      grid-template-columns:240px 1fr;
+      gap:18px;
+      align-items:start;
+      min-height:70vh;
+    }
+    .admin-sidebar{
+      background:var(--card);
+      border-radius:12px;
+      padding:16px;
+      box-shadow:0 6px 16px rgba(2,6,23,0.04);
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+    .admin-brand{
+      padding:12px;
+      border-radius:10px;
+      background:linear-gradient(135deg,var(--clr-surface-tonal-a10),var(--clr-surface-a10));
+      border:1px solid rgba(15,23,42,0.08);
+    }
+    .brand-title{font-weight:700;font-size:1.05rem}
+    .brand-sub{color:var(--muted);font-size:0.85rem}
+    .admin-nav{display:flex;flex-direction:column;gap:8px}
+    .admin-link{
+      text-decoration:none;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:10px;
+      background:var(--clr-surface-a10);
+      border:1px solid rgba(15,23,42,0.06);
+      font-weight:500;
+    }
+    .admin-link:hover{background:var(--clr-surface-a20)}
+    .admin-link.active{
+      background:linear-gradient(90deg,var(--accent),var(--accent-2));
+      color:#fff;
+      border-color:transparent;
+    }
+
+    .admin-main{display:flex;flex-direction:column;gap:16px;min-width:0}
+    .admin-topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      background:var(--card);
+      border-radius:12px;
+      padding:14px 16px;
+      box-shadow:0 4px 14px rgba(2,6,23,0.04);
+    }
+    .admin-title{font-size:1.3rem;font-weight:700}
+    .admin-sub{color:var(--muted);font-size:0.9rem}
+    .admin-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .admin-content{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+    .admin-tab-panel{display:none}
+    .admin-tab-panel.is-active{display:block}
+    .admin-panel{
+      background:var(--card);
+      border-radius:12px;
+      padding:14px;
+      box-shadow:0 4px 14px rgba(2,6,23,0.04);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-width:0;
+    }
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .panel-title{font-weight:600}
+    .panel-meta{color:var(--muted);font-size:0.85rem}
+
+    .admin-table{width:100%;border-collapse:collapse}
+    .admin-table th{
+      text-align:left;
+      padding:8px 6px;
+      font-size:0.7rem;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+    }
+    .admin-table td{
+      padding:10px 6px;
+      border-top:1px solid rgba(15,23,42,0.06);
+      font-size:0.9rem;
+    }
+    .table-actions{display:flex;gap:6px;flex-wrap:wrap}
+    .status-badge{
+      display:inline-flex;
+      align-items:center;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:0.75rem;
+      font-weight:600;
+      background:var(--clr-surface-tonal-a20);
+      color:var(--text);
+    }
+    .status-ok{background:rgba(34,197,94,0.16);color:var(--clr-success-a10)}
+    .status-warn{background:rgba(245,158,11,0.16);color:var(--clr-warning-a0)}
+    .status-bad{background:rgba(239,68,68,0.16);color:var(--clr-danger-a10)}
+
+    .disk-usage{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .disk-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:12px;
+    }
+    .disk-card{
+      background:var(--clr-surface-a10);
+      border-radius:12px;
+      padding:12px;
+      border:1px solid rgba(15,23,42,0.06);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .disk-card-title{font-weight:600}
+    .disk-chart{
+      --percent: 73;
+      width:160px;
+      height:160px;
+      border-radius:50%;
+      background:conic-gradient(var(--accent) calc(var(--percent) * 1%),var(--clr-surface-a20) 0);
+      display:grid;
+      place-items:center;
+      position:relative;
+      box-shadow:0 10px 20px rgba(2,6,23,0.08);
+    }
+    .disk-chart::before{
+      content:"";
+      position:absolute;
+      width:70%;
+      height:70%;
+      border-radius:50%;
+      background:var(--card);
+      box-shadow:inset 0 0 0 1px rgba(15,23,42,0.08);
+    }
+    .disk-percent{
+      position:relative;
+      z-index:1;
+      text-align:center;
+    }
+    .disk-value{font-size:1.4rem;font-weight:700}
+    .disk-label{color:var(--muted);font-size:0.85rem}
+    .disk-metrics{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-width:180px;
+    }
+    .disk-metric{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      font-size:0.9rem;
+    }
+    .disk-metric span:last-child{font-weight:600}
+    .disk-dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      display:inline-block;
+      margin-right:6px;
+      background:var(--accent);
+    }
+    .disk-dot.free{background:var(--clr-surface-a30)}
+
+    @media(max-width:1100px){
+      .admin-shell{grid-template-columns:1fr}
+      .admin-sidebar{order:2}
+      .admin-content{grid-template-columns:1fr}
+    }
+    @media(max-width:900px){
+      .admin-topbar{flex-direction:column;align-items:flex-start}
+      .admin-actions{width:100%}
+      .disk-usage{justify-content:center}
+    }
+  </style>
+{% endblock %}
+
+{% block header_actions %}
+  <form action="/logout" method="get">
+    <button class="btn logout" type="submit">Logout</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+  {% set users = [
+    {
+      'name': 'inkfox',
+      'role': 'Admin',
+      'storage': '12 GB',
+      'status': 'Active',
+      'actions': [('Edit', 'secondary'), ('Reset', 'primary')]
+    },
+    {
+      'name': 'nodepilot',
+      'role': 'Manager',
+      'storage': '98 GB',
+      'status': 'Review',
+      'actions': [('Inspect', 'secondary'), ('Limit', 'primary')]
+    },
+    {
+      'name': 'kira_97',
+      'role': 'User',
+      'storage': '1.2 GB',
+      'status': 'Active',
+      'actions': [('Message', 'secondary'), ('Disable', 'primary')]
+    },
+    {
+      'name': 'solar_stack',
+      'role': 'User',
+      'storage': '0.4 GB',
+      'status': 'Suspended',
+      'actions': [('Review', 'secondary'), ('Restore', 'primary')]
+    }
+  ] %}
+  {% set status_classes = {
+    'Active': 'status-ok',
+    'Review': 'status-warn',
+    'Suspended': 'status-bad'
+  } %}
+  {% set disks = [
+    {
+      'name': 'System (SSD-1)',
+      'percent': 68,
+      'used': '340 GB',
+      'free': '160 GB',
+      'total': '500 GB',
+      'alerts': '4%'
+    },
+    {
+      'name': 'Media (HDD-2)',
+      'percent': 81,
+      'used': '1.62 TB',
+      'free': '0.38 TB',
+      'total': '2 TB',
+      'alerts': '18%'
+    },
+    {
+      'name': 'Archive (HDD-3)',
+      'percent': 42,
+      'used': '1.05 TB',
+      'free': '1.45 TB',
+      'total': '2.5 TB',
+      'alerts': '0%'
+    }
+  ] %}
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <div class="admin-brand">
+        <div class="brand-title">NoSocial Admin</div>
+        <div class="brand-sub">Users + Storage</div>
+      </div>
+
+      <nav class="admin-nav" role="tablist">
+        <a class="admin-link active" href="#" role="tab" aria-selected="true" aria-controls="tab-users" data-tab="users">Users</a>
+        <a class="admin-link" href="#" role="tab" aria-selected="false" aria-controls="tab-disk" data-tab="disk">Disk usage</a>
+      </nav>
+    </aside>
+
+    <section class="admin-main">
+      <div class="admin-topbar">
+        <div>
+          <div class="admin-title">Admin</div>
+          <div class="admin-sub">User management and disk usage</div>
+        </div>
+        <div class="admin-actions">
+          <button class="btn secondary" type="button">Import users</button>
+          <button class="btn primary" type="button">Invite user</button>
+        </div>
+      </div>
+
+      <div class="admin-content" data-tab-panels>
+        <div class="admin-tab-panel is-active" id="tab-users" role="tabpanel" data-tab-panel="users">
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div class="panel-title">User management</div>
+              <button class="btn secondary" type="button">Filter</button>
+            </div>
+            <div class="panel-meta">1284 total users</div>
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Storage</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+            <tbody>
+              {% for user in users %}
+                <tr>
+                  <td>{{ user.name }}</td>
+                  <td>{{ user.role }}</td>
+                  <td>{{ user.storage }}</td>
+                  <td><span class="status-badge {{ status_classes.get(user.status, '') }}">{{ user.status }}</span></td>
+                  <td>
+                    <div class="table-actions">
+                      {% for action in user.actions %}
+                        <button class="btn {{ action[1] }}" type="button">{{ action[0] }}</button>
+                      {% endfor %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+        <div class="admin-tab-panel" id="tab-disk" role="tabpanel" data-tab-panel="disk">
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div class="panel-title">Disk usage</div>
+              <div class="panel-meta">Updated 2 min ago</div>
+            </div>
+            <div class="disk-grid">
+              {% for disk in disks %}
+                <div class="disk-card">
+                  <div class="disk-card-title">{{ disk.name }}</div>
+                  <div class="disk-usage">
+                    <div class="disk-chart" style="--percent:{{ disk.percent }}">
+                      <div class="disk-percent">
+                        <div class="disk-value">{{ disk.percent }}%</div>
+                        <div class="disk-label">used</div>
+                      </div>
+                    </div>
+                    <div class="disk-metrics">
+                      <div class="disk-metric"><span><span class="disk-dot"></span>Used</span><span>{{ disk.used }}</span></div>
+                      <div class="disk-metric"><span><span class="disk-dot free"></span>Free</span><span>{{ disk.free }}</span></div>
+                      <div class="disk-metric"><span>Total</span><span>{{ disk.total }}</span></div>
+                      <div class="disk-metric"><span>Alerts</span><span>{{ disk.alerts }}</span></div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/admin.js') }}"></script>
+{% endblock %}
