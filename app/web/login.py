@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Form
-from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from app.services.login import login
