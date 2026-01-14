@@ -2,6 +2,12 @@
 
 {% block title %}NoSocial Files{% endblock %}
 
+{% block header_actions %}
+  <form action="/logout" method="get">
+    <button class="btn logout" type="submit">Logout</button>
+  </form>
+{% endblock %}
+
 {% block content %}
   {% set user_root = request.query_params.get('username') or request.cookies.get('username') or 'My Drive' %}
   <div class="drive-shell">
@@ -81,7 +87,7 @@
           </div>
           <div class="drive-view">
             <button class="icon-btn active" type="button" aria-label="Grid view">Grid</button>
-            <button class="icon-btn" type="button" aria-label="List view">List</button>
+            <button class="icon-btn list" type="button" aria-label="List view">List</button>
           </div>
         </div>
       </div>

@@ -173,7 +173,9 @@ body, .auth-card, .hero, .feature, input, .switch-track, .switch-knob, .tab, .bt
 .btn{padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
 .auth-card .btn{width:100%;padding:12px 14px}
 .btn.primary{background:var(--accent);color:#fff}
-.btn.secondary{background:transparent;border:1px solid rgba(15,23,42,0.06)}
+.btn.secondary{background:var(--card);border:1px solid rgba(15,23,42,0.06);color:var(--text)}
+.btn.logout{background:var(--clr-primary-a0);color:#fff;border:1px solid transparent}
+.icon-btn.list{background-color: var(--clr-surface-a20);color:var(--text)}
 .error-message{color:var(--danger);font-size:0.9rem;min-height:1.2em;margin-top:6px}
 
 form{display:flex;flex-direction:column;gap:16px}

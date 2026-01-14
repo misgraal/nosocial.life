@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Form
-from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from app.services.register import register
@@ -19,7 +18,7 @@ async def main(
 ):
     result = await register(username, password, confirm_password)
     if result.success == True:
-        return RedirectResponse("/app", status_code=303)
+        return RedirectResponse("/login")
     else: 
         error = "Passwords do not match" if result.error == 1 else "User already exists"
         return templates.TemplateResponse(
