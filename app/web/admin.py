@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Request, Form
-from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
-from app.security.sesions import get_user_id
 from fastapi.responses import RedirectResponse
-from app.db.app import get_user_username_by_id
+from app.security.sesions import get_user_id
+from app.services.admin import *
 
 
 router = APIRouter()
@@ -19,11 +18,19 @@ async def main(request: Request):
     user_id = get_user_id(sid)
     if not user_id:
         return RedirectResponse("/", status_code=303)
-    resp = templates.TemplateResponse(
-        "admin.html",
-        {
-            "request": request
-        }
-    )
+    result = await admin(user_id)
+    if result.success == True:
+        usersResponce = await get_info()
+        users = usersResponce.users
+        resp = templates.TemplateResponse(
+            "admin.html",
+            {
+                "request": request,
+                "users": users
+            }
+        )
+    else:
+        return RedirectResponse("/app", status_code=303)
+        
     return resp
 

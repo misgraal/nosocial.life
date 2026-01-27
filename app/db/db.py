@@ -42,6 +42,14 @@ async def fetch_one(query: str, args: tuple | None = None):
         async with conn.cursor(asyncmy.cursors.DictCursor) as cur:
             await cur.execute(query, args)
             return await cur.fetchone()
+        
+async def fetch_all(query: str, args: tuple | None = None):
+    if _pool is None:
+        raise RuntimeError("DB pool is not initialized")
+    async with _pool.acquire() as conn:
+        async with conn.cursor(asyncmy.cursors.DictCursor) as cur:
+            await cur.execute(query, args)
+            return await cur.fetchall()
 
 async def execute(query: str, args: tuple | None = None):
     if _pool is None:

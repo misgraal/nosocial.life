@@ -201,36 +201,6 @@
 {% endblock %}
 
 {% block content %}
-  {% set users = [
-    {
-      'name': 'inkfox',
-      'role': 'Admin',
-      'storage': '12 GB',
-      'status': 'Active',
-      'actions': [('Edit', 'secondary'), ('Reset', 'primary')]
-    },
-    {
-      'name': 'nodepilot',
-      'role': 'Manager',
-      'storage': '98 GB',
-      'status': 'Review',
-      'actions': [('Inspect', 'secondary'), ('Limit', 'primary')]
-    },
-    {
-      'name': 'kira_97',
-      'role': 'User',
-      'storage': '1.2 GB',
-      'status': 'Active',
-      'actions': [('Message', 'secondary'), ('Disable', 'primary')]
-    },
-    {
-      'name': 'solar_stack',
-      'role': 'User',
-      'storage': '0.4 GB',
-      'status': 'Suspended',
-      'actions': [('Review', 'secondary'), ('Restore', 'primary')]
-    }
-  ] %}
   {% set status_classes = {
     'Active': 'status-ok',
     'Review': 'status-warn',
@@ -308,7 +278,7 @@
             <tbody>
               {% for user in users %}
                 <tr>
-                  <td>{{ user.name }}</td>
+                  <td>{{ user.username }}</td>
                   <td>{{ user.role }}</td>
                   <td>{{ user.storage }}</td>
                   <td><span class="status-badge {{ status_classes.get(user.status, '') }}">{{ user.status }}</span></td>

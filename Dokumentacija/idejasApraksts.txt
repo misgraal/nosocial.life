@@ -37,3 +37,5 @@ kas nodrošinās ātru failu meklēšanu un pārvaldību.
     NoSocial.life izstrāde tiek plānota 3–4 mēnešiem, pakāpeniski realizējot dizainu, lietotāju sistēmu, failu loģiku, 
 Home Media Server moduli, testēšanu un gala demonstrāciju. Gala rezultāts būs stabila, ātra un ērta mājas 
 mākoņkrātuve ar iespēju piekļūt failiem no jebkuras vietas un skatīties filmas lokālajā tīklā.
+
+gitHub repo: https://github.com/misgraal/nosocial.life
