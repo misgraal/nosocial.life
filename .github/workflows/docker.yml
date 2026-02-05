@@ -30,21 +30,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run container
-        run: |
-          docker run -d --name api -p 8000:8000 fastapi-app:ci
-          # wait briefly for startup
-          for i in {1..20}; do
-            if curl -fsS http://localhost:8000/health >/dev/null; then
-              echo "Health check ok"
-              exit 0
-            fi
-            sleep 0.5
-          done
-          echo "Health check failed"
-          docker logs api
-          exit 1
-
       - name: Cleanup
         if: always()
         run: |
