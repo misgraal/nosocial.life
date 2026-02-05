@@ -1,0 +1,51 @@
+name: nosocial.life
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build image and keep it locally for the next steps
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: fastapi-app:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container
+        run: |
+          docker run -d --name api -p 8000:8000 fastapi-app:ci
+          # wait briefly for startup
+          for i in {1..20}; do
+            if curl -fsS http://localhost:8000/health >/dev/null; then
+              echo "Health check ok"
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "Health check failed"
+          docker logs api
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f api || true
