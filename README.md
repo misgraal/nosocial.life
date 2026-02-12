@@ -107,3 +107,30 @@ Ja pamatfunkcionāls bus izstradāts ātrāk, аtlikušajā laika tiks izstradā
 -------------------
 - DLNA/UPnP Home Media Server funkcija
   (MP4 faili no “Movies” mapes)
+
+
+## Sistēmas prasības
+
+### Funkcionālās prasības
+#### 1. Lietotāju pārvaldība un autentifikācija
+- Sistēmai jānodrošina lietotāju reģistrācija, autorizācija un paroļu droša glabāšana (hešošana). Jāparedz vismaz divas lomas: Admin un User.
+
+#### 2. Failu augšupielāde un lejupielāde
+- Lietotājam jāspēj augšupielādēt failus serverī un lejupielādēt tos no jebkuras vietas, izmantojot tīmekļa saskarni.
+
+#### 3. Failu pārlūkošana un meklēšana
+- Sistēmai jānodrošina vizuāls File Explorer interfeiss ar mapju struktūru, kā arī iespēja meklēt failus un mapes pēc nosaukuma.
+
+### Nefunkcionālās prasības
+#### 1. Drošība
+- Paroles jāglabā hešotā veidā.
+- Datu pārsūtīšanai jāizmanto HTTPS (plānots).
+- Piekļuve lietotāju failiem jāierobežo atbilstoši lomām.
+
+#### 2. Veiktspēja un mērogojamība
+- Failu augšupielādei/lejupielādei jānotiek bez būtiskas aiztures tipiskā mājas tīkla apstākļos.
+- Failu sadales algoritmam jānodrošina vienmērīga disku vietas izmantošana.
+
+#### 3. Pieejamība un stabilitāte
+- Sistēmai jābūt pieejamai 24/7, kamēr darbojas mājas serveris.
+- Sistēmai jādarbojas uz Ubuntu Linux vidē bez kritiskām kļūdām ilgstošas darbības laikā.
