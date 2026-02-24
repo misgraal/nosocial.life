@@ -2,7 +2,7 @@ name: nosocial.life
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "app_main" ]
   pull_request:
 
 permissions:
