@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from app.security.sesions import get_user_id
 from fastapi.responses import RedirectResponse
 from app.db.app import get_user_username_by_id
+from app.services.app import *
 
 
 router = APIRouter()
@@ -11,7 +12,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 
-@router.get("/app")
+@router.get("/app/home")
 async def main(request: Request):
     
     
@@ -19,6 +20,7 @@ async def main(request: Request):
     user_id = get_user_id(sid)
     if not user_id:
         return RedirectResponse("/", status_code=303)
+    await home(user_id)
     resp = templates.TemplateResponse(
         "app.html",
         {
@@ -26,4 +28,8 @@ async def main(request: Request):
         }
     )
     return resp
+
+@router.get("/app/folders")
+async def main(request: Request):
+    pass
 

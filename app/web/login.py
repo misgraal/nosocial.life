@@ -21,7 +21,7 @@ async def main(
     result = await login(username, password)
     if result.success == True:
         sid = create_session(await get_user_id(username))
-        resp = RedirectResponse("/app", status_code=303)
+        resp = RedirectResponse("/app/home", status_code=303)
         resp.set_cookie(
             "session_id",
             sid,
