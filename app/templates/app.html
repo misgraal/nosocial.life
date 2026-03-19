@@ -22,50 +22,7 @@
               <span class="tree-label">{{ user_root }}</span>
             </div>
             <ul class="tree-children">
-              <li class="tree-node">
-                <div class="tree-item">
-                  <span class="tree-caret empty"></span>
-                  <span class="tree-icon"></span>
-                  <span class="tree-label">Projects</span>
-                </div>
-              </li>
-              <li class="tree-node">
-                <div class="tree-item">
-                  <span class="tree-caret empty"></span>
-                  <span class="tree-icon"></span>
-                  <span class="tree-label">Screenshots</span>
-                </div>
-              </li>
-              <li class="tree-node expanded">
-                <div class="tree-item">
-                  <span class="tree-caret"></span>
-                  <span class="tree-icon"></span>
-                  <span class="tree-label">Documents</span>
-                </div>
-                <ul class="tree-children">
-                  <li class="tree-node">
-                    <div class="tree-item">
-                      <span class="tree-caret empty"></span>
-                      <span class="tree-icon"></span>
-                      <span class="tree-label">Work</span>
-                    </div>
-                  </li>
-                  <li class="tree-node">
-                    <div class="tree-item">
-                      <span class="tree-caret empty"></span>
-                      <span class="tree-icon"></span>
-                      <span class="tree-label">Personal</span>
-                    </div>
-                  </li>
-                </ul>
-              </li>
-              <li class="tree-node">
-                <div class="tree-item">
-                  <span class="tree-caret empty"></span>
-                  <span class="tree-icon"></span>
-                  <span class="tree-label">Archive</span>
-                </div>
-              </li>
+
             </ul>
           </li>
         </ul>
@@ -75,10 +32,6 @@
     <section class="drive-main">
       <div class="drive-toolbar">
         <div class="drive-breadcrumbs">
-          <span class="crumb">This PC</span>
-          <span class="crumb-sep">></span>
-          <span class="crumb">Documents</span>
-          <span class="crumb-sep">></span>
           <span class="crumb current">{{ user_root }}</span>
         </div>
         <div class="drive-toolbar-right">
@@ -107,21 +60,21 @@
       </div>
 
       <div id="files-list" class="drive-grid">
-        {% for i in range(6) %}
+        {% for folder in folders %}
         <div class="drive-tile folder{% if i == 1 %} selected{% endif %}">
           <div class="tile-thumb folder">Folder</div>
           <div class="tile-meta">
-            <div class="tile-name">Folder_{{ i + 1 }}</div>
-            <div class="tile-sub">Updated today</div>
+            <div class="tile-name">{{ folder["folderName"] }}</div>
+            <div class="tile-sub">Last modified<br>{{ folder["lastModified"] }}</div>
           </div>
         </div>
         {% endfor %}
-        {% for i in range(24) %}
-        <div class="drive-tile file{% if i == 8 %} selected{% endif %}">
+        {% for file in files %}
+        <div class="drive-tile file"> <!--selected-->
           <div class="tile-thumb image">PNG</div>
           <div class="tile-meta">
-            <div class="tile-name">screenshot_{{ i + 1 }}.png</div>
-            <div class="tile-sub">2.3 MB - Modified today</div>
+            <div class="tile-name">{{ file["fileName"] }}</div>
+            <div class="tile-sub">{{ file["sizeBytes"] }} MB<br>Last modified<br>{{ file["lastModified"] }}</div>
           </div>
         </div>
         {% endfor %}

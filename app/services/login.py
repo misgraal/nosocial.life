@@ -9,7 +9,10 @@ class LoginResult:
 
 async def login(username: str, password: str) -> LoginResult:
     password_hash = await get_user_password(username)
-    res = verify_password(password, password_hash['password'])
+    try:
+        res = verify_password(password, password_hash['password'])
+    except:
+        return LoginResult(False, 2)
     if password_hash:
         if res == True:
             return LoginResult(True, 0)

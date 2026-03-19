@@ -3,7 +3,7 @@ create table folders (
 	userID int NOT NULL,
     folderName varchar(255) NOT NULL,
 	parentFolderID int NULL,
-    serverPath varchar(512) NOT NULL,
+    serverPath varchar(512) NULL,
     createdAt datetime NOT NULL,
     lastModified datetime NOT NULL,
     

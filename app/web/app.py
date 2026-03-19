@@ -20,16 +20,20 @@ async def main(request: Request):
     user_id = get_user_id(sid)
     if not user_id:
         return RedirectResponse("/", status_code=303)
-    await home(user_id)
+    items = await home(user_id)
+    folders = items.folders
+    files = items.files
     resp = templates.TemplateResponse(
         "app.html",
         {
-            "request": request
+            "request": request,
+            "folders": folders,
+            "files": files
         }
     )
     return resp
 
 @router.get("/app/folders")
-async def main(request: Request):
+async def folders(request: Request):
     pass
 

@@ -1,0 +1,5 @@
+$env:DB_HOST = "127.0.0.1"
+$env:DB_PORT = "3306"
+$env:DB_USER = "server"
+$env:DB_PASSWORD = "server"
+$env:DB_NAME = "nosocial"
