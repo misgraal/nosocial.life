@@ -23,6 +23,7 @@ async def main(request: Request):
     items = await home(user_id)
     folders = items.folders
     files = items.files
+    print(folders, files)
     resp = templates.TemplateResponse(
         "app.html",
         {
@@ -32,6 +33,18 @@ async def main(request: Request):
         }
     )
     return resp
+
+@router.get("/app/create-folder")
+async def createFolder(request: Request):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        return RedirectResponse("/", status_code=303)
+
+    data = await request.json()
+    folderName = data.get("name")
+
+    create_folder(folderName, user_id)
 
 @router.get("/app/folders")
 async def folders(request: Request):

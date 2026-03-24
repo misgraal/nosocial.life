@@ -2,6 +2,111 @@
 
 {% block title %}NoSocial Files{% endblock %}
 
+{% block head %}
+  <style>
+    .modal-overlay{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:rgba(15,23,42,0.45);
+      backdrop-filter:blur(6px);
+      z-index:1000;
+    }
+
+    .modal-overlay[hidden]{
+      display:none;
+    }
+
+    .modal-dialog{
+      width:min(100%, 440px);
+      background:var(--card);
+      border:1px solid rgba(15,23,42,0.08);
+      border-radius:16px;
+      box-shadow:0 24px 60px rgba(15,23,42,0.25);
+      padding:24px;
+    }
+
+    .modal-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    .modal-title{
+      margin:0;
+      font-size:1.2rem;
+    }
+
+    .modal-subtitle{
+      margin:6px 0 0;
+      color:var(--muted);
+      font-size:0.92rem;
+    }
+
+    .modal-close{
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      border:1px solid rgba(15,23,42,0.08);
+      background:var(--clr-surface-a10);
+      color:var(--text);
+      cursor:pointer;
+      font-size:1.2rem;
+      line-height:1;
+    }
+
+    .modal-form{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .modal-field{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .modal-field label{
+      font-size:0.9rem;
+      font-weight:600;
+    }
+
+    .modal-field input{
+      width:100%;
+      padding:11px 12px;
+      border-radius:10px;
+      border:1px solid rgba(15,23,42,0.08);
+      background:var(--clr-surface-a10);
+      color:var(--text);
+    }
+
+    .modal-field input:focus{
+      outline:none;
+      border-color:var(--accent);
+      box-shadow:0 0 0 4px rgba(230,30,76,0.12);
+    }
+
+    .modal-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      margin-top:6px;
+    }
+
+    .modal-note{
+      margin:0;
+      color:var(--muted);
+      font-size:0.82rem;
+    }
+  </style>
+{% endblock %}
+
 {% block header_actions %}
   <form action="/logout" method="get">
     <button class="btn logout" type="submit">Logout</button>
@@ -22,7 +127,15 @@
               <span class="tree-label">{{ user_root }}</span>
             </div>
             <ul class="tree-children">
-
+              {% for folder in folders %}
+              <li>
+                <div class="tree-item">
+                <span class="tree-caret"></span>
+                <span class="tree-icon"></span>
+                <span class="tree-label">{{ folder.name }}</span>
+                </div>
+              </li>
+              {% endfor %}
             </ul>
           </li>
         </ul>
@@ -111,8 +224,100 @@
       </div>
     </aside>
   </div>
+
+  <div id="create-folder-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="create-folder-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="create-folder-title" class="modal-title">Create folder</h2>
+        </div>
+        <button id="close-folder-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="create-folder-form" class="modal-form">
+        <div class="modal-field">
+          <input id="folder-name-input" name="folder_name" type="text" placeholder="Folder name" required>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-modal>Cancel</button>
+          <button class="btn primary" type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
 {% endblock %}
 
 {% block scripts %}
   <script src="{{ url_for('static', path='js/tree.js') }}"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const newFolderButton = document.getElementById('new-folder');
+      const modal = document.getElementById('create-folder-modal');
+      const closeButton = document.getElementById('close-folder-modal');
+      const closeModalButton = modal ? modal.querySelector('[data-close-modal]') : null;
+      const form = document.getElementById('create-folder-form');
+      const folderNameInput = document.getElementById('folder-name-input');
+
+      if(!newFolderButton || !modal || !form || !folderNameInput){
+        return;
+      }
+
+      function openModal(){
+        modal.hidden = false;
+        folderNameInput.focus();
+      }
+
+      function closeModal(){
+        modal.hidden = true;
+        form.reset();
+      }
+
+      newFolderButton.addEventListener('click', openModal);
+      closeButton.addEventListener('click', closeModal);
+
+      if(closeModalButton){
+        closeModalButton.addEventListener('click', closeModal);
+      }
+
+      modal.addEventListener('click', function(event){
+        if(event.target === modal){
+          closeModal();
+        }
+      });
+
+      document.addEventListener('keydown', function(event){
+        if(event.key === 'Escape' && !modal.hidden){
+          closeModal();
+        }
+      });
+
+      async function createFolder(folderName) {
+        const response = await fetch('/app/create-folder', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: folderName })
+        });
+
+        const data = await response.json();
+        console.log(data);
+      }
+
+      form.addEventListener('submit', function(event){
+        event.preventDefault();
+
+        const folderName = folderNameInput.value.trim();
+        createFolder(folderName);
+
+        if(!folderName){
+          folderNameInput.focus();
+          return;
+        }
+
+        closeModal();
+      });
+    });
+  </script>
 {% endblock %}
