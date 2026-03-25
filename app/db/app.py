@@ -14,17 +14,31 @@ async def add_root_folder(userID, folderName):
     return res
 
 async def get_users_roots_child_folders(id: int):
-    res = await fetch_all("SELECT folderID, folderName, lastModified from folders where userID=%s and parentFolderID in (select folderID from folders where userID=%s and parentFolderID is null)", (id, id,))
+    res = await fetch_all("SELECT publicID, folderName, lastModified from folders where userID=%s and parentFolderID in (select folderID from folders where userID=%s and parentFolderID is null)", (id, id,))
     return res
 
 async def get_users_roots_child_files(id: int):
     res = await fetch_all("select fileID, fileName, sizeBytes, previewPath, lastModified from files where userID = %s and folderID is null", (id,))
     return res
 
-async def get_users_folder_content(folderID):
-    res = await fetch_all("SELECT folderID, folderName from folders where parentFolderID = %s", (folderID,))
+async def create_folder_db(folderName, userID, parentFolderID):
+    publicID = generateRandomHash()
+    await execute("insert into folders (userID, folderName, parentFolderID, createdAt, lastModified, publicID) values (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)", (userID, folderName, parentFolderID, publicID,))
+    res = await fetch_one("select publicID, folderName, lastModified from folders where userID=%s and publicID=%s", (userID, publicID,))
     return res
 
-async def create_folder_db(folderName, userID, parentFolderID):
-    res = await execute("insert into folders (userID, folderName, parentFolderID, createdAt, lastModified, publicID) values (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)", (userID, folderName, parentFolderID, generateRandomHash(),))
+async def get_folder_id_by_public_id(publicID):
+    res = await fetch_one("select folderID from folders where publicID=%s", (publicID,))
+    return res
+
+async def get_folders_names_in_folder(userID, folderID):
+    res = await fetch_all("select folderName from folders where userID=%s and parentFolderID=%s", (userID, folderID,))
+    return res
+
+async def get_folders_child_folders(folderID):
+    res = await fetch_all("select publicID, folderName, lastModified from folders where parentFolderID=%s", (folderID,))
+    return res
+
+async def get_parent_folder(folderID):
+    res = await fetch_one("select parentFolderID from folders where folderID=%s", (folderID,))
     return res

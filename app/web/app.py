@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, HTTPException
 from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
 from app.security.sesions import get_user_id
@@ -23,7 +23,6 @@ async def main(request: Request):
     items = await home(user_id)
     folders = items.folders
     files = items.files
-    print(folders, files)
     resp = templates.TemplateResponse(
         "app.html",
         {
@@ -39,14 +38,46 @@ async def createFolder(request: Request):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
     if not user_id:
-        return RedirectResponse("/", status_code=303)
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     data = await request.json()
     folderName = data.get("name")
+    url = data.get("URLc")
 
-    create_folder(folderName, user_id)
+    if not folderName:
+        raise HTTPException(status_code=400, detail="Folder name is required")
+    
 
-@router.get("/app/folders")
-async def folders(request: Request):
-    pass
+    folder = await create_folder(folderName, user_id, url)
+    if folder == 1:
+        return { "error": 1 }
+
+    return {
+        "folder": folder.folder
+    }
+
+@router.get("/app/folders/{publicID}")
+async def folders(request: Request, publicID: str):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        return RedirectResponse("/", status_code=303)
+
+    items = await getFoldersContent(publicID)
+    if items == "root":
+        return RedirectResponse("/app/home", status_code=303)
+
+
+    folders = items.folders
+    files = []
+
+    resp = templates.TemplateResponse(
+        "app.html",
+        {
+            "request": request,
+            "folders": folders,
+            "files": files
+        }
+    )
+    return resp    
 

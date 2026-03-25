@@ -3,9 +3,9 @@ create table folders (
 	userID int NOT NULL,
     folderName varchar(255) NOT NULL,
 	parentFolderID int NULL,
-    serverPath varchar(512) NULL,
     createdAt datetime NOT NULL,
     lastModified datetime NOT NULL,
+    publicID varchar(20),
     
     primary key (folderID),
     foreign key (userID) references users(userID),

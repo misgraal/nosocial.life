@@ -99,10 +99,25 @@
       margin-top:6px;
     }
 
+    .modal-error{
+      min-height:20px;
+      margin:0;
+      color:var(--danger);
+      font-size:0.88rem;
+    }
+
+    .modal-error[hidden]{
+      display:none;
+    }
+
     .modal-note{
       margin:0;
       color:var(--muted);
       font-size:0.82rem;
+    }
+
+    .drive-tile.folder{
+      cursor:pointer;
     }
   </style>
 {% endblock %}
@@ -172,9 +187,14 @@
         </div>
       </div>
 
-      <div id="files-list" class="drive-grid">
+        <div id="files-list" class="drive-grid">
         {% for folder in folders %}
-        <div class="drive-tile folder{% if i == 1 %} selected{% endif %}">
+        <div
+          class="drive-tile folder{% if i == 1 %} selected{% endif %}"
+          data-folder-public-id="{{ folder['publicID'] }}"
+          data-folder-name="{{ folder['folderName'] }}"
+          data-folder-modified="{{ folder['lastModified'] }}"
+        >
           <div class="tile-thumb folder">Folder</div>
           <div class="tile-meta">
             <div class="tile-name">{{ folder["folderName"] }}</div>
@@ -239,6 +259,8 @@
           <input id="folder-name-input" name="folder_name" type="text" placeholder="Folder name" required>
         </div>
 
+        <p id="new-folder-error" class="modal-error" hidden></p>
+
         <div class="modal-actions">
           <button class="btn secondary" type="button" data-close-modal>Cancel</button>
           <button class="btn primary" type="submit">Create</button>
@@ -258,17 +280,36 @@
       const closeModalButton = modal ? modal.querySelector('[data-close-modal]') : null;
       const form = document.getElementById('create-folder-form');
       const folderNameInput = document.getElementById('folder-name-input');
+      const errorBox = document.getElementById('new-folder-error');
+      const filesList = document.getElementById('files-list');
+      const previewEmpty = document.querySelector('.preview-empty');
+      const previewName = document.querySelector('.preview-row:nth-child(1) .preview-value');
+      const previewType = document.querySelector('.preview-row:nth-child(2) .preview-value');
+      const previewSize = document.querySelector('.preview-row:nth-child(3) .preview-value');
+      const previewModified = document.querySelector('.preview-row:nth-child(4) .preview-value');
+      let folderClickTimer = null;
 
       if(!newFolderButton || !modal || !form || !folderNameInput){
         return;
       }
 
+      function clearError() {
+        if (!errorBox) {
+          return;
+        }
+
+        errorBox.textContent = '';
+        errorBox.hidden = true;
+      }
+
       function openModal(){
+        clearError();
         modal.hidden = false;
         folderNameInput.focus();
       }
 
       function closeModal(){
+        clearError();
         modal.hidden = true;
         form.reset();
       }
@@ -292,31 +333,171 @@
         }
       });
 
-      async function createFolder(folderName) {
+      function formatPythonDatetime(value) {
+        const match = value.match(
+          /datetime\.datetime\((\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)/
+        );
+
+        if (!match) {
+          return value;
+        }
+
+        const [, year, month, day, hour, minute, second] = match;
+
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}`;
+      }
+      function formatDatetime(value) {
+        return value.replace('T', ' ');
+      }
+
+      function renderError(message) {
+        if (!errorBox) {
+          return;
+        }
+
+        errorBox.textContent = message;
+        errorBox.hidden = false;
+      }
+
+      function renderFolder(folder) {
+        const folderHtml = `
+          <div
+            class="drive-tile folder"
+            data-folder-public-id="${folder.publicID}"
+            data-folder-name="${folder.folderName}"
+            data-folder-modified="${folder.lastModified}"
+          >
+            <div class="tile-thumb folder">Folder</div>
+              <div class="tile-meta">
+                <div class="tile-name">${folder.folderName}</div>
+                <div class="tile-sub">Last modified<br>${formatDatetime(formatPythonDatetime(folder.lastModified))}</div>
+          </div>
+        </div>
+        `;
+
+        filesList.insertAdjacentHTML('afterbegin', folderHtml);
+      }
+
+      function setSelectedFolder(folderTile) {
+        const selectedFolders = document.querySelectorAll('.drive-tile.folder.selected');
+        selectedFolders.forEach(function(tile){
+          tile.classList.remove('selected');
+        });
+
+        folderTile.classList.add('selected');
+
+        if (previewEmpty) {
+          previewEmpty.textContent = 'Folder selected.';
+        }
+
+        if (previewName) {
+          previewName.textContent = folderTile.dataset.folderName || 'Folder';
+        }
+
+        if (previewType) {
+          previewType.textContent = 'Folder';
+        }
+
+        if (previewSize) {
+          previewSize.textContent = '—';
+        }
+
+        if (previewModified) {
+          const modified = folderTile.dataset.folderModified || '';
+          previewModified.textContent = formatDatetime(formatPythonDatetime(modified));
+        }
+      }
+
+      function openFolder(folderTile) {
+        const publicID = folderTile.dataset.folderPublicId;
+        if (!publicID) {
+          return;
+        }
+
+        window.location.href = `/app/folders/${publicID}`;
+      }
+
+      filesList.addEventListener('click', function(event){
+        const folderTile = event.target.closest('.drive-tile.folder');
+        if (!folderTile) {
+          return;
+        }
+
+        if (folderClickTimer) {
+          clearTimeout(folderClickTimer);
+        }
+
+        folderClickTimer = window.setTimeout(function(){
+          setSelectedFolder(folderTile);
+          folderClickTimer = null;
+        }, 220);
+      });
+
+      filesList.addEventListener('dblclick', function(event){
+        const folderTile = event.target.closest('.drive-tile.folder');
+        if (!folderTile) {
+          return;
+        }
+
+        if (folderClickTimer) {
+          clearTimeout(folderClickTimer);
+          folderClickTimer = null;
+        }
+
+        openFolder(folderTile);
+      });
+
+      async function createFolder(folderName, currentUrl) {
         const response = await fetch('/app/api/create-folder', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name: folderName })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: folderName, URLc: currentUrl})
         });
 
         const data = await response.json();
-        console.log(data);
+
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to create folder');
+        }
+
+        if (data.error === 1) {
+          return data.error;
+        }
+
+        return data.folder;
       }
 
-      form.addEventListener('submit', function(event){
+      folderNameInput.addEventListener('input', clearError);
+
+      form.addEventListener('submit', async function(event){
         event.preventDefault();
 
         const folderName = folderNameInput.value.trim();
-        createFolder(folderName);
-
+        const currentUrl = window.location.href;
+        
         if(!folderName){
+          renderError('Folder name is required');
           folderNameInput.focus();
           return;
         }
 
-        closeModal();
+        clearError();
+
+        try {
+          const folder = await createFolder(folderName, currentUrl);
+
+          if (folder === 1) {
+            renderError('Folder with this name already exists');
+            return;
+          }
+
+          renderFolder(folder);
+          closeModal();
+        } catch (error) {
+          renderError(error.message || 'Failed to create folder');
+        }
       });
     });
   </script>

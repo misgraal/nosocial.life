@@ -10,7 +10,12 @@ class StartUpResult:
 
 @dataclass
 class folderContent:
-    content: dict
+    folders: list
+    #files: list
+
+@dataclass
+class createFolder:
+    folder: dict
 
 async def home(user_id) -> StartUpResult:
     username = await get_user_username_by_id(user_id)
@@ -36,8 +41,42 @@ async def home(user_id) -> StartUpResult:
     
     return StartUpResult(inRootFolders, inRootFiles)
 
-async def create_folder(folderName, userID):
-    await create_folder_db(folderName, userID) # сделать учет текущей папки
+async def check_dublicate(userID, parentFolderID, newFolderName):
+    folderNames = await get_folders_names_in_folder(userID, parentFolderID)
+    for folderName in folderNames:
+        if folderName["folderName"] == newFolderName:
+            return 1 # Folder already exists
+    return 0
 
-async def getFoldersContent(folderID) -> folderContent:
-    ...
+async def create_folder(folderName, userID, url: str):
+    parentPublicID = url.split("/")[-1]
+    if parentPublicID == "home":
+        parentFolder = await get_users_root_folder(userID)
+        parentFolderID = parentFolder[0]["folderID"]
+    else:
+        parentFolder = await get_folder_id_by_public_id(parentPublicID)
+        parentFolderID = parentFolder["folderID"]
+    if await check_dublicate(userID, parentFolderID, folderName) == 1:
+        return 1
+
+    folder = await create_folder_db(folderName, userID, parentFolderID)
+    return createFolder(folder)
+
+async def checkRoot(folderID) -> bool:
+    res = await get_parent_folder(folderID)
+    if res["parentFolderID"]:
+        return False
+    else: return True
+
+async def getFoldersContent(publicID) -> folderContent:
+    f = await get_folder_id_by_public_id(publicID)
+    folderID = f["folderID"]
+    rootFolder = await checkRoot(folderID)
+    if rootFolder:
+        return "root"
+    else:
+        childFolders = await get_folders_child_folders(folderID)
+        childFiles = ...
+
+        return folderContent(childFolders)
+
