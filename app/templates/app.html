@@ -293,7 +293,7 @@
       });
 
       async function createFolder(folderName) {
-        const response = await fetch('/app/create-folder', {
+        const response = await fetch('/app/api/create-folder', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

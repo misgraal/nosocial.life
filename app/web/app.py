@@ -34,7 +34,7 @@ async def main(request: Request):
     )
     return resp
 
-@router.get("/app/create-folder")
+@router.post("/app/api/create-folder")
 async def createFolder(request: Request):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
