@@ -52,7 +52,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 5799
           script: |
-            cd /home/finguin/finguin
+            cd /home/nosocial/nosocial
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose pull app
             docker compose up -d app
