@@ -268,6 +268,30 @@
       </form>
     </div>
   </div>
+
+  <div id="upload-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="upload-title" class="modal-title">Upload file</h2>
+        </div>
+        <button id="close-upload-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="upload-form" class="modal-form">
+        <div class="modal-field">
+          <input id="upload-file-input" name="upload_file" type="file" required>
+        </div>
+
+        <p id="upload-error" class="modal-error" hidden></p>
+
+        <div class="modal-actions">
+          <button class="btn secondary" type="button" data-close-upload-modal>Cancel</button>
+          <button class="btn primary" type="submit">Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
 {% endblock %}
 
 {% block scripts %}
@@ -275,12 +299,19 @@
   <script>
     document.addEventListener('DOMContentLoaded', function(){
       const newFolderButton = document.getElementById('new-folder');
+      const uploadButton = document.getElementById('upload-btn');
       const modal = document.getElementById('create-folder-modal');
+      const uploadModal = document.getElementById('upload-modal');
       const closeButton = document.getElementById('close-folder-modal');
+      const closeUploadButton = document.getElementById('close-upload-modal');
       const closeModalButton = modal ? modal.querySelector('[data-close-modal]') : null;
+      const closeUploadModalButton = uploadModal ? uploadModal.querySelector('[data-close-upload-modal]') : null;
       const form = document.getElementById('create-folder-form');
+      const uploadForm = document.getElementById('upload-form');
       const folderNameInput = document.getElementById('folder-name-input');
+      const uploadFileInput = document.getElementById('upload-file-input');
       const errorBox = document.getElementById('new-folder-error');
+      const uploadErrorBox = document.getElementById('upload-error');
       const filesList = document.getElementById('files-list');
       const previewEmpty = document.querySelector('.preview-empty');
       const previewName = document.querySelector('.preview-row:nth-child(1) .preview-value');
@@ -289,36 +320,53 @@
       const previewModified = document.querySelector('.preview-row:nth-child(4) .preview-value');
       let folderClickTimer = null;
 
-      if(!newFolderButton || !modal || !form || !folderNameInput){
+      if(!newFolderButton || !uploadButton || !modal || !uploadModal || !form || !uploadForm || !folderNameInput || !uploadFileInput){
         return;
       }
 
-      function clearError() {
-        if (!errorBox) {
+      function clearErrorBox(targetErrorBox) {
+        if (!targetErrorBox) {
           return;
         }
 
-        errorBox.textContent = '';
-        errorBox.hidden = true;
+        targetErrorBox.textContent = '';
+        targetErrorBox.hidden = true;
       }
 
       function openModal(){
-        clearError();
+        clearErrorBox(errorBox);
         modal.hidden = false;
         folderNameInput.focus();
       }
 
       function closeModal(){
-        clearError();
+        clearErrorBox(errorBox);
         modal.hidden = true;
         form.reset();
       }
 
+      function openUploadModal() {
+        clearErrorBox(uploadErrorBox);
+        uploadModal.hidden = false;
+        uploadFileInput.focus();
+      }
+
+      function closeUploadModal() {
+        clearErrorBox(uploadErrorBox);
+        uploadModal.hidden = true;
+        uploadForm.reset();
+      }
+
       newFolderButton.addEventListener('click', openModal);
+      uploadButton.addEventListener('click', openUploadModal);
       closeButton.addEventListener('click', closeModal);
+      closeUploadButton.addEventListener('click', closeUploadModal);
 
       if(closeModalButton){
         closeModalButton.addEventListener('click', closeModal);
+      }
+      if(closeUploadModalButton){
+        closeUploadModalButton.addEventListener('click', closeUploadModal);
       }
 
       modal.addEventListener('click', function(event){
@@ -326,10 +374,18 @@
           closeModal();
         }
       });
+      uploadModal.addEventListener('click', function(event){
+        if(event.target === uploadModal){
+          closeUploadModal();
+        }
+      });
 
       document.addEventListener('keydown', function(event){
         if(event.key === 'Escape' && !modal.hidden){
           closeModal();
+        }
+        if(event.key === 'Escape' && !uploadModal.hidden){
+          closeUploadModal();
         }
       });
 
@@ -357,6 +413,14 @@
 
         errorBox.textContent = message;
         errorBox.hidden = false;
+      }
+      function renderUploadError(message) {
+        if (!uploadErrorBox) {
+          return;
+        }
+
+        uploadErrorBox.textContent = message;
+        uploadErrorBox.hidden = false;
       }
 
       function renderFolder(folder) {
@@ -469,7 +533,12 @@
         return data.folder;
       }
 
-      folderNameInput.addEventListener('input', clearError);
+      folderNameInput.addEventListener('input', function(){
+        clearErrorBox(errorBox);
+      });
+      uploadFileInput.addEventListener('input', function(){
+        clearErrorBox(uploadErrorBox);
+      });
 
       form.addEventListener('submit', async function(event){
         event.preventDefault();
@@ -483,7 +552,7 @@
           return;
         }
 
-        clearError();
+        clearErrorBox(errorBox);
 
         try {
           const folder = await createFolder(folderName, currentUrl);
@@ -498,6 +567,18 @@
         } catch (error) {
           renderError(error.message || 'Failed to create folder');
         }
+      });
+
+      uploadForm.addEventListener('submit', function(event){
+        event.preventDefault();
+
+        if (!uploadFileInput.files || uploadFileInput.files.length === 0) {
+          renderUploadError('File is required');
+          uploadFileInput.focus();
+          return;
+        }
+
+        closeUploadModal();
       });
     });
   </script>
