@@ -50,9 +50,9 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          port: 5799
+          port: 4555
           script: |
-            cd /home/nosocial/nosocial
+            cd /home/nosocial/app
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose pull app
             docker compose up -d app
