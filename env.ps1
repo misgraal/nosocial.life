@@ -3,3 +3,4 @@ $env:DB_PORT = "3306"
 $env:DB_USER = "server"
 $env:DB_PASSWORD = "server"
 $env:DB_NAME = "nosocial"
+
