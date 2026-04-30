@@ -1643,7 +1643,7 @@
       const driveSearchScope = driveShell.dataset.searchScope || 'own';
       const isSharedMode = driveShell.dataset.sharedMode === 'true';
       const isReadOnly = driveShell ? driveShell.dataset.readOnly === 'true' : false;
-      const uploadChunkSize = 5 * 1024 * 1024;
+      const uploadChunkSize = 512 * 1024;
       let folderClickTimer = null;
       let isUploading = false;
       let uploadToastTimer = null;
