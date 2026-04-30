@@ -6,10 +6,11 @@ from fastapi.responses import RedirectResponse
 from app.services.app import DeleteItemsPayload, MoveItemsPayload, RenameItemPayload, move_items, rename_item, search_drive
 from app.services.files import delete_items
 from app.services.folders import home
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 

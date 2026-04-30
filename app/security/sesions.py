@@ -1,14 +1,15 @@
 import json
 import secrets
 import time
-from pathlib import Path
 from threading import Lock
+
+from config import RUNTIME_DIR
 
 
 SESSIONS: dict[str, tuple[int, float]] = {}
 TTL = 60 * 60 * 24 * 7
 SESSIONS_LOCK = Lock()
-SESSIONS_FILE = Path(__file__).resolve().parents[2] / "runtime" / "sessions.json"
+SESSIONS_FILE = RUNTIME_DIR / "sessions.json"
 
 
 def ensure_sessions_dir():

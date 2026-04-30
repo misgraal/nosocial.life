@@ -23,10 +23,11 @@ from app.services.files import (
     set_file_visibility,
     update_file_share_settings,
 )
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def has_valid_file_share_cookie(request: Request, file: dict) -> bool:

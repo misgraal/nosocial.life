@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Request, Form
 from app.schemas import schemas
 from fastapi.templating import Jinja2Templates
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 
@@ -26,4 +27,3 @@ async def main(request: Request):
             "error": error
         }
     )
-

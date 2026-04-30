@@ -33,8 +33,14 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      NOSOCIAL_STORAGE_DIRS: /mnt/storage
+      NOSOCIAL_TMP_FOLDER: temp
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - /mnt/storage:/mnt/storage
+      - app_runtime:/runtime
 
 volumes:
   mysql_data:
+  app_runtime:

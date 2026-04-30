@@ -16,11 +16,11 @@ async def init_pool() -> None:
     global _pool
     if _pool is None:
         _pool = await asyncmy.create_pool(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT")),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            db=os.getenv("DB_NAME"),
+            host=os.getenv("DB_HOST", "127.0.0.1"),
+            port=int(os.getenv("DB_PORT", "3306")),
+            user=os.getenv("DB_USER", "server"),
+            password=os.getenv("DB_PASSWORD", "server"),
+            db=os.getenv("DB_NAME", "nosocial"),
             autocommit=True,
         )
 
