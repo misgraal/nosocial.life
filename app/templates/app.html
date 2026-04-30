@@ -358,6 +358,7 @@
       display:flex;
       flex-direction:column;
       gap:4px;
+      flex:1;
     }
 
     .upload-toast-title{
@@ -373,6 +374,27 @@
       font-size:0.83rem;
       color:var(--muted);
       line-height:1.35;
+    }
+
+    .upload-toast-cancel{
+      flex:0 0 auto;
+      border:1px solid var(--app-border);
+      background:var(--card);
+      color:var(--text);
+      border-radius:8px;
+      padding:8px 10px;
+      font-size:0.8rem;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .upload-toast-cancel:hover{
+      border-color:var(--danger);
+      color:var(--danger);
+    }
+
+    .upload-toast-cancel[hidden]{
+      display:none;
     }
 
     .tile-name{
@@ -1521,6 +1543,7 @@
       <div id="upload-progress-title" class="upload-toast-title">Uploading files</div>
       <div id="upload-progress-meta" class="upload-toast-meta">Preparing upload...</div>
     </div>
+    <button id="upload-cancel-toast" class="upload-toast-cancel" type="button" hidden>Cancel</button>
   </div>
 
   <div id="item-context-menu" class="item-context-menu" hidden>
@@ -1535,7 +1558,7 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', path='js/tree.js') }}"></script>
+  <script src="/static/js/tree.js"></script>
   <script>
     window.addEventListener('pageshow', function(event){
       const navigationEntry = window.performance && typeof window.performance.getEntriesByType === 'function'
@@ -1613,6 +1636,7 @@
       const uploadProgressPercent = document.getElementById('upload-progress-percent');
       const uploadProgressTitle = document.getElementById('upload-progress-title');
       const uploadProgressMeta = document.getElementById('upload-progress-meta');
+      const uploadCancelToastButton = document.getElementById('upload-cancel-toast');
       const warningModalTitle = document.getElementById('warning-modal-title');
       const warningModalMessage = document.getElementById('warning-modal-message');
       const warningCancelButton = document.getElementById('warning-cancel');
@@ -1646,6 +1670,9 @@
       const uploadChunkSize = 8 * 1024 * 1024;
       let folderClickTimer = null;
       let isUploading = false;
+      let uploadCancelled = false;
+      let activeUploadXhr = null;
+      let activeUploadIds = new Set();
       let uploadToastTimer = null;
       let selectionAnchorIndex = null;
       let dragSelection = null;
@@ -1841,6 +1868,11 @@
         if (closeUploadModalButton) {
           closeUploadModalButton.disabled = uploading;
         }
+
+        if (uploadCancelToastButton) {
+          uploadCancelToastButton.hidden = !uploading;
+          uploadCancelToastButton.disabled = false;
+        }
       }
 
       function createUploadId() {
@@ -1907,9 +1939,59 @@
         return { detail: responseText };
       }
 
+      function createUploadCancelledError() {
+        const error = new Error('Upload cancelled');
+        error.name = 'UploadCancelledError';
+        return error;
+      }
+
+      function isUploadCancelledError(error) {
+        return error && error.name === 'UploadCancelledError';
+      }
+
+      function cancelUploadOnServer(uploadId) {
+        if (!uploadId) {
+          return Promise.resolve();
+        }
+
+        return fetch('/app/api/upload/cancel', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({uploadId})
+        }).catch(function(){
+          return null;
+        });
+      }
+
+      function cancelActiveUpload() {
+        if (!isUploading || uploadCancelled) {
+          return;
+        }
+
+        uploadCancelled = true;
+        if (uploadCancelToastButton) {
+          uploadCancelToastButton.disabled = true;
+        }
+        updateUploadToast(
+          uploadProgressRing ? Number(uploadProgressRing.style.getPropertyValue('--progress')) || 0 : 0,
+          'error',
+          'Cancelling upload',
+          'Cleaning up temporary files...'
+        );
+
+        if (activeUploadXhr) {
+          activeUploadXhr.abort();
+        }
+
+        Promise.all(Array.from(activeUploadIds).map(cancelUploadOnServer)).finally(function(){
+          activeUploadIds.clear();
+        });
+      }
+
       function uploadChunkRequest(uploadUrl, formData, onProgress) {
         return new Promise(function(resolve, reject){
           const xhr = new XMLHttpRequest();
+          activeUploadXhr = xhr;
 
           xhr.open('POST', uploadUrl);
           xhr.upload.onprogress = function(event){
@@ -1918,6 +2000,13 @@
             }
           };
           xhr.onload = function(){
+            if (activeUploadXhr === xhr) {
+              activeUploadXhr = null;
+            }
+            if (uploadCancelled) {
+              reject(createUploadCancelledError());
+              return;
+            }
             const payload = parseUploadXhrResponse(xhr);
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve(payload);
@@ -1927,10 +2016,16 @@
             reject(new Error(payload.detail || payload.message || `Upload failed with status ${xhr.status}`));
           };
           xhr.onerror = function(){
+            if (activeUploadXhr === xhr) {
+              activeUploadXhr = null;
+            }
             reject(new Error('Network error during upload'));
           };
           xhr.onabort = function(){
-            reject(new Error('Upload was cancelled'));
+            if (activeUploadXhr === xhr) {
+              activeUploadXhr = null;
+            }
+            reject(createUploadCancelledError());
           };
 
           xhr.send(formData);
@@ -1943,8 +2038,13 @@
         const uploadId = createUploadId();
         const relativePath = file.webkitRelativePath || '';
         let completedFile = null;
+        activeUploadIds.add(uploadId);
 
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+          if (uploadCancelled) {
+            throw createUploadCancelledError();
+          }
+
           const start = chunkIndex * uploadChunkSize;
           const end = Math.min(start + uploadChunkSize, file.size);
           const chunk = file.slice(start, end);
@@ -1983,6 +2083,7 @@
           renderUploadProgress(progressState, uploadTitle, progressState.completedBytes);
         }
 
+        activeUploadIds.delete(uploadId);
         return completedFile;
       }
 
@@ -2003,6 +2104,10 @@
         renderUploadProgress(progressState, 'Uploading files', 0);
 
         for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+          if (uploadCancelled) {
+            throw createUploadCancelledError();
+          }
+
           const file = files[fileIndex];
           progressState.fileIndex = fileIndex;
           renderUploadProgress(progressState, `Preparing ${file.name}`, progressState.completedBytes);
@@ -2026,6 +2131,9 @@
 
         clearErrorBox(uploadErrorBox);
         clearUploadStatus();
+        uploadCancelled = false;
+        activeUploadIds.clear();
+        activeUploadXhr = null;
         setUploadState(true);
 
         try {
@@ -2042,6 +2150,17 @@
           updateUploadToast(100, 'success', 'Upload completed', `${files.length} file(s) uploaded`);
           hideUploadToastLater(3000);
         } catch (error) {
+          if (isUploadCancelledError(error)) {
+            updateUploadToast(
+              uploadProgressRing ? Number(uploadProgressRing.style.getPropertyValue('--progress')) || 0 : 0,
+              'error',
+              'Upload cancelled',
+              'Temporary files were removed'
+            );
+            hideUploadToastLater(2500);
+            return;
+          }
+
           updateUploadToast(
             uploadProgressRing ? Number(uploadProgressRing.style.getPropertyValue('--progress')) || 0 : 0,
             'error',
@@ -2050,6 +2169,8 @@
           );
           throw error;
         } finally {
+          activeUploadXhr = null;
+          activeUploadIds.clear();
           setUploadState(false);
         }
       }
@@ -2454,6 +2575,9 @@
       }
       if(closeUploadModalButton){
         closeUploadModalButton.addEventListener('click', closeUploadModal);
+      }
+      if(uploadCancelToastButton){
+        uploadCancelToastButton.addEventListener('click', cancelActiveUpload);
       }
 
       modal.addEventListener('click', function(event){

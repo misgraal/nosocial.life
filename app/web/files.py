@@ -12,6 +12,7 @@ from app.security.sesions import get_user_id
 from app.security.passwords import verify_password
 from app.services.app import UpdateFileShareSettingsPayload, UpdateFileVisibilityPayload, UploadChunkPayload
 from app.services.files import (
+    cancel_upload,
     get_file_share_settings,
     get_share_access_cookie_name,
     get_accessible_file,
@@ -257,6 +258,22 @@ async def fileUpload(
 
     try:
         return await handle_chunk_upload(user_id, payload, chunk_bytes)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/app/api/upload/cancel")
+async def cancelUpload(request: Request):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    data = await request.json()
+    upload_id = data.get("uploadId", "")
+
+    try:
+        return await cancel_upload(upload_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 

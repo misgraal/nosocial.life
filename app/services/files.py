@@ -41,6 +41,7 @@ from config import DISKS, tmpFolder
 
 
 upload_list = []
+cancelled_upload_ids = set()
 last_upload_cleanup_at = 0
 STALE_UPLOAD_MAX_AGE_SECONDS = 60 * 60 * 24
 CLEANUP_INTERVAL_SECONDS = 60 * 30
@@ -166,6 +167,7 @@ def build_upload_paths(upload: dict):
 
 
 def validate_chunk_payload(payload: UploadChunkPayload):
+    validate_upload_id(payload.upload_id)
     if payload.chunk_index < 0 or payload.total_chunks < 1 or payload.chunk_index >= payload.total_chunks:
         raise ValueError("Invalid chunk metadata")
     if payload.chunk_start is not None:
@@ -173,6 +175,11 @@ def validate_chunk_payload(payload: UploadChunkPayload):
             raise ValueError("Invalid chunk offset")
         if payload.is_last_chunk and payload.chunk_start + payload.chunk_size != payload.file_size:
             raise ValueError("Invalid final chunk size")
+
+
+def validate_upload_id(upload_id: str):
+    if not upload_id or Path(upload_id).name != upload_id or upload_id in {".", ".."}:
+        raise ValueError("Invalid upload id")
 
 
 def get_streamed_upload_path(temp_dir: Path) -> Path:
@@ -239,6 +246,33 @@ def cleanup_temp_chunks(temp_dir: Path):
 def remove_upload_from_memory(upload: dict):
     if upload in upload_list:
         upload_list.remove(upload)
+
+
+async def cancel_upload(upload_id: str) -> dict:
+    validate_upload_id(upload_id)
+    cancelled_upload_ids.add(upload_id)
+
+    matching_uploads = [
+        upload for upload in upload_list
+        if upload["uploadId"] == upload_id
+    ]
+    for upload in matching_uploads:
+        remove_upload_from_memory(upload)
+
+    candidate_disks = {
+        disk_path
+        for disk_path in [*DISKS, *(await get_enabled_upload_disks())]
+        if is_platform_compatible_disk_path(disk_path)
+    }
+    candidate_disks.update(upload["uploadDisk"] for upload in matching_uploads)
+
+    temp_root_name = Path(tmpFolder).name
+    for disk_path in candidate_disks:
+        temp_dir = Path(disk_path) / temp_root_name / "chunks" / upload_id
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    return {"status": "cancelled", "uploadId": upload_id}
 
 
 async def cleanup_stale_upload_chunks():
@@ -453,7 +487,16 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     temp_dir, final_dir = build_upload_paths(upload)
     safe_file_name = Path(payload.file_name).name
 
+    if payload.upload_id in cancelled_upload_ids:
+        cleanup_temp_chunks(temp_dir)
+        remove_upload_from_memory(upload)
+        raise ValueError("Upload was cancelled")
+
     save_chunk(temp_dir, payload, chunk_bytes)
+    if payload.upload_id in cancelled_upload_ids:
+        cleanup_temp_chunks(temp_dir)
+        remove_upload_from_memory(upload)
+        raise ValueError("Upload was cancelled")
 
     if not payload.is_last_chunk:
         return {
@@ -516,6 +559,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
 
     cleanup_temp_chunks(temp_dir)
     remove_upload_from_memory(upload)
+    cancelled_upload_ids.discard(payload.upload_id)
 
     return {
         "status": "completed",

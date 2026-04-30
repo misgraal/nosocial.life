@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}NoSocial FileShare{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+  <link rel="stylesheet" href="/static/css/styles.css">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -35,7 +35,7 @@
     <div class="container full-bleed">© NoSocial FileShare</div>
   </footer>
 
-  <script src="{{ url_for('static', path='js/main.js') }}"></script>
+  <script src="/static/js/main.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
