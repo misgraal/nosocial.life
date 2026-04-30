@@ -1643,7 +1643,7 @@
       const driveSearchScope = driveShell.dataset.searchScope || 'own';
       const isSharedMode = driveShell.dataset.sharedMode === 'true';
       const isReadOnly = driveShell ? driveShell.dataset.readOnly === 'true' : false;
-      const uploadChunkSize = 5 * 1024 * 1024;
+      const uploadChunkSize = 8 * 1024 * 1024;
       let folderClickTimer = null;
       let isUploading = false;
       let uploadToastTimer = null;
@@ -1714,6 +1714,62 @@
         }
 
         return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
+      }
+
+      function formatDuration(seconds) {
+        if (!Number.isFinite(seconds) || seconds < 0) {
+          return 'calculating';
+        }
+
+        const roundedSeconds = Math.max(1, Math.round(seconds));
+        const hours = Math.floor(roundedSeconds / 3600);
+        const minutes = Math.floor((roundedSeconds % 3600) / 60);
+        const remainingSeconds = roundedSeconds % 60;
+
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        }
+
+        if (minutes > 0) {
+          return `${minutes}m ${remainingSeconds}s`;
+        }
+
+        return `${remainingSeconds}s`;
+      }
+
+      function getUploadSpeed(progressState, uploadedBytes) {
+        if (!progressState.startedAt) {
+          return 0;
+        }
+
+        const elapsedSeconds = (performance.now() - progressState.startedAt) / 1000;
+        if (elapsedSeconds <= 0.2) {
+          return 0;
+        }
+
+        return uploadedBytes / elapsedSeconds;
+      }
+
+      function buildUploadProgressMeta(progressState, uploadedBytes) {
+        const totalBytes = progressState.totalBytes || 0;
+        const speedBytesPerSecond = getUploadSpeed(progressState, uploadedBytes);
+        const remainingBytes = Math.max(0, totalBytes - uploadedBytes);
+        const etaSeconds = speedBytesPerSecond > 0 ? remainingBytes / speedBytesPerSecond : Number.NaN;
+        const speedLabel = speedBytesPerSecond > 0 ? `${formatBytes(speedBytesPerSecond)}/s` : 'calculating speed';
+        const etaLabel = speedBytesPerSecond > 0 ? `ETA ${formatDuration(etaSeconds)}` : 'ETA calculating';
+
+        return `${formatBytes(uploadedBytes)} of ${formatBytes(totalBytes)} • ${speedLabel} • ${etaLabel}`;
+      }
+
+      function renderUploadProgress(progressState, title, uploadedBytes) {
+        const safeUploadedBytes = Math.max(0, Math.min(progressState.totalBytes || 0, uploadedBytes));
+        const progress = progressState.totalBytes > 0
+          ? (safeUploadedBytes / progressState.totalBytes) * 100
+          : 100;
+        const meta = buildUploadProgressMeta(progressState, safeUploadedBytes);
+
+        renderUploadStatus(`${title} • ${meta}`);
+        updateUploadToast(progress, 'uploading', title, meta);
       }
 
       function clearUploadToastTimer() {
@@ -1828,6 +1884,55 @@
         return text ? { detail: text } : {};
       }
 
+      function parseUploadXhrResponse(xhr) {
+        const contentType = xhr.getResponseHeader('content-type') || '';
+        const responseText = xhr.responseText || '';
+
+        if (!responseText) {
+          return {};
+        }
+
+        if (contentType.includes('application/json')) {
+          try {
+            return JSON.parse(responseText);
+          } catch (error) {
+            return { detail: responseText };
+          }
+        }
+
+        return { detail: responseText };
+      }
+
+      function uploadChunkRequest(uploadUrl, formData, onProgress) {
+        return new Promise(function(resolve, reject){
+          const xhr = new XMLHttpRequest();
+
+          xhr.open('POST', uploadUrl);
+          xhr.upload.onprogress = function(event){
+            if (event.lengthComputable) {
+              onProgress(event.loaded);
+            }
+          };
+          xhr.onload = function(){
+            const payload = parseUploadXhrResponse(xhr);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(payload);
+              return;
+            }
+
+            reject(new Error(payload.detail || payload.message || `Upload failed with status ${xhr.status}`));
+          };
+          xhr.onerror = function(){
+            reject(new Error('Network error during upload'));
+          };
+          xhr.onabort = function(){
+            reject(new Error('Upload was cancelled'));
+          };
+
+          xhr.send(formData);
+        });
+      }
+
       async function uploadFileInChunks(file, options, progressState) {
         const uploadUrl = uploadForm.dataset.uploadUrl || '/app/api/upload';
         const totalChunks = Math.max(1, Math.ceil(file.size / uploadChunkSize));
@@ -1857,36 +1962,20 @@
             formData.append('folderPublicId', options.folderPublicId);
           }
 
-          renderUploadStatus(`Uploading ${file.name}: chunk ${chunkIndex + 1} of ${totalChunks}`);
-          updateUploadToast(
-            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 0,
-            'uploading',
-            `Uploading ${file.name}`,
-            `Chunk ${chunkIndex + 1}/${totalChunks} • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
-          );
+          const chunkStartBytes = progressState.completedBytes;
+          const uploadTitle = `Uploading ${file.name}`;
+          renderUploadProgress(progressState, uploadTitle, chunkStartBytes);
 
-          const response = await fetch(uploadUrl, {
-            method: 'POST',
-            body: formData
+          const payload = await uploadChunkRequest(uploadUrl, formData, function(loadedBytes){
+            renderUploadProgress(progressState, uploadTitle, chunkStartBytes + Math.min(loadedBytes, chunk.size));
           });
-
-          const payload = await parseUploadResponse(response);
-
-          if (!response.ok) {
-            throw new Error(payload.detail || payload.message || `Failed to upload ${file.name}`);
-          }
 
           if (payload.file) {
             completedFile = payload.file;
           }
 
           progressState.completedBytes += chunk.size;
-          updateUploadToast(
-            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 100,
-            'uploading',
-            `Uploading ${file.name}`,
-            `${progressState.fileIndex + 1}/${progressState.totalFiles} files • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
-          );
+          renderUploadProgress(progressState, uploadTitle, progressState.completedBytes);
         }
 
         return completedFile;
@@ -1901,22 +1990,17 @@
           totalBytes,
           completedBytes: 0,
           totalFiles: files.length,
-          fileIndex: 0
+          fileIndex: 0,
+          startedAt: performance.now()
         };
         const completedFiles = [];
 
-        updateUploadToast(0, 'uploading', 'Uploading files', `${files.length} file(s) • ${formatBytes(totalBytes)}`);
+        renderUploadProgress(progressState, 'Uploading files', 0);
 
         for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
           const file = files[fileIndex];
           progressState.fileIndex = fileIndex;
-          renderUploadStatus(`Preparing ${file.name} (${fileIndex + 1}/${files.length})`);
-          updateUploadToast(
-            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 0,
-            'uploading',
-            `Uploading ${file.name}`,
-            `${fileIndex + 1}/${files.length} files • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
-          );
+          renderUploadProgress(progressState, `Preparing ${file.name}`, progressState.completedBytes);
           const uploadedFile = await uploadFileInChunks(file, uploadContext, progressState);
           if (uploadedFile) {
             completedFiles.push(uploadedFile);

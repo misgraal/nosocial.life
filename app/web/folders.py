@@ -19,10 +19,11 @@ from app.services.folders import (
     update_folder_share_settings,
 )
 from app.db.folders import get_folder_by_public_id
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def has_valid_folder_share_cookie(request: Request, folder: dict) -> bool:

@@ -4,10 +4,11 @@ from fastapi.responses import RedirectResponse
 from app.db.app import create_audit_log
 from app.db.login import get_user_id
 from app.services.register import register
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 

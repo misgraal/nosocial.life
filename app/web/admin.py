@@ -13,10 +13,11 @@ from app.services.admin import (
     toggle_user_role,
     update_active_upload_disks,
 )
+from config import TEMPLATES_DIR
 
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @router.get("/admin")
