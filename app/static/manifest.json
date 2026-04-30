@@ -1,0 +1,19 @@
+{
+  "name": "NoSocial FileShare",
+  "short_name": "NoSocial",
+  "description": "Private file storage and sharing.",
+  "start_url": "/app/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#d9255e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/img/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

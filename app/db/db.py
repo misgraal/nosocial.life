@@ -2,14 +2,24 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import asyncmy
 from fastapi import FastAPI
 
 from app.security.folderHashGenerator import generateRandomHash
+from config import DISKS, MEDIA_FOLDER_NAME, TMP_FOLDER
 
 
 _pool: asyncmy.Pool | None = None
+
+
+def ensure_storage_directories() -> None:
+    for disk_path in DISKS:
+        disk = Path(disk_path)
+        disk.mkdir(parents=True, exist_ok=True)
+        (disk / TMP_FOLDER).mkdir(parents=True, exist_ok=True)
+        (disk / MEDIA_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
 
 
 async def init_pool() -> None:
@@ -35,6 +45,7 @@ async def close_pool() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    ensure_storage_directories()
     await init_pool()
     await init_schema()
     try:

@@ -35,12 +35,25 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       NOSOCIAL_STORAGE_DIRS: /mnt/storage
       NOSOCIAL_TMP_FOLDER: temp
+      NOSOCIAL_MEDIA_FOLDER: ${NOSOCIAL_MEDIA_FOLDER:-Movies}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - /mnt/storage:/mnt/storage
       - app_runtime:/runtime
 
+  dlna:
+    image: ghcr.io/misgraal/nosocial.life:latest
+    container_name: nosocial-dlna
+    restart: unless-stopped
+    network_mode: host
+    command: ["minidlnad", "-d", "-f", "/etc/minidlna.conf"]
+    volumes:
+      - /mnt/storage:/media/storage:ro
+      - ./minidlna.conf:/etc/minidlna.conf:ro
+      - dlna_cache:/var/cache/minidlna
+
 volumes:
   mysql_data:
   app_runtime:
+  dlna_cache:

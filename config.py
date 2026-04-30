@@ -50,3 +50,4 @@ DISKS = _split_storage_dirs(os.getenv("NOSOCIAL_STORAGE_DIRS", "")) or _default_
 
 TMP_FOLDER = os.getenv("NOSOCIAL_TMP_FOLDER", "temp")
 tmpFolder = TMP_FOLDER
+MEDIA_FOLDER_NAME = os.getenv("NOSOCIAL_MEDIA_FOLDER", "Movies")

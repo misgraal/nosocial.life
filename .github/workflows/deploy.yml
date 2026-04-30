@@ -54,5 +54,5 @@ jobs:
           script: |
             cd /home/nosocial/app
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose pull app
-            docker compose up -d app
+            docker compose pull app dlna
+            docker compose up -d app dlna

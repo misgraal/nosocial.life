@@ -4,6 +4,17 @@ from app.security.folderHashGenerator import generateRandomHash
 
 FOLDER_SUMMARY_FIELDS = "publicID, public, publicExpiresAt, folderName, lastModified"
 FOLDER_DETAIL_FIELDS = "folderID, userID, publicID, public, publicExpiresAt, publicPasswordHash, folderName, parentFolderID, lastModified"
+FOLDER_DETAIL_FIELDS_QUALIFIED = """
+    folders.folderID,
+    folders.userID,
+    folders.publicID,
+    folders.public,
+    folders.publicExpiresAt,
+    folders.publicPasswordHash,
+    folders.folderName,
+    folders.parentFolderID,
+    folders.lastModified
+"""
 
 
 async def get_users_root_folder(id: int):
@@ -105,7 +116,7 @@ async def get_shared_root_folders_for_user(userID):
     return await fetch_all(
         f"""
         select
-            {FOLDER_DETAIL_FIELDS},
+            {FOLDER_DETAIL_FIELDS_QUALIFIED},
             owners.username as ownerUsername
         from folder_user_shares
         inner join folders on folders.folderID = folder_user_shares.folderID

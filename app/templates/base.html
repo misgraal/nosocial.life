@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#d9255e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="NoSocial">
   <title>{% block title %}NoSocial FileShare{% endblock %}</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/img/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/img/app-icon.svg">
   <link rel="stylesheet" href="/static/css/styles.css">
   {% block head %}{% endblock %}
 </head>
@@ -36,6 +43,13 @@
   </footer>
 
   <script src="/static/js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function(){
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+      });
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

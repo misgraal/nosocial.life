@@ -1128,6 +1128,342 @@
       white-space:nowrap;
       vertical-align:top;
     }
+
+    @media (max-width: 760px){
+      html,
+      body{
+        min-height:100%;
+        overflow:auto;
+      }
+
+      body{
+        min-height:100dvh;
+      }
+
+      .site-header{
+        position:sticky;
+        top:0;
+        z-index:900;
+        padding:8px 0;
+        border-bottom:1px solid var(--app-border-subtle);
+        background:color-mix(in srgb, var(--bg) 94%, transparent);
+        backdrop-filter:blur(14px);
+      }
+
+      .site-header .container{
+        padding:8px 12px;
+      }
+
+      .logo{
+        font-size:0.98rem;
+        white-space:nowrap;
+      }
+
+      .theme-track{
+        width:64px;
+        height:32px;
+      }
+
+      main{
+        overflow:visible;
+      }
+
+      main > .container.full-bleed{
+        height:auto;
+        min-height:calc(100dvh - 58px);
+        padding:10px 10px 96px;
+      }
+
+      .drive-shell{
+        height:auto;
+        min-height:0;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+      }
+
+      .drive-sidebar{
+        order:2;
+        width:100%;
+        max-height:34dvh;
+        border-radius:10px;
+        padding:10px;
+        box-shadow:none;
+        border:1px solid var(--app-border-subtle);
+      }
+
+      .drive-sidebar-links{
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:8px;
+        margin-bottom:10px;
+      }
+
+      .drive-sidebar-link{
+        min-height:44px;
+        display:grid;
+        place-items:center;
+        text-align:center;
+        padding:8px 10px;
+        border-radius:10px;
+        font-size:0.9rem;
+      }
+
+      .drive-section-title{
+        margin-bottom:6px;
+      }
+
+      .folder-tree{
+        max-height:23dvh;
+        overflow:auto;
+      }
+
+      .tree-item{
+        min-height:42px;
+        padding:8px 10px;
+      }
+
+      .drive-main{
+        order:1;
+        overflow:visible;
+        gap:10px;
+      }
+
+      .drive-toolbar{
+        position:sticky;
+        top:58px;
+        z-index:800;
+        padding:10px;
+        gap:10px;
+        border-radius:10px;
+        box-shadow:none;
+        border:1px solid var(--app-border-subtle);
+        background:color-mix(in srgb, var(--card) 96%, transparent);
+        backdrop-filter:blur(14px);
+      }
+
+      .drive-nav{
+        width:100%;
+        gap:8px;
+      }
+
+      .drive-nav-buttons{
+        display:flex;
+        gap:8px;
+      }
+
+      .drive-nav-buttons .icon-btn{
+        width:44px;
+        min-height:44px;
+      }
+
+      .drive-breadcrumbs{
+        min-height:34px;
+        overflow-x:auto;
+        scrollbar-width:none;
+        padding-bottom:2px;
+      }
+
+      .drive-breadcrumbs::-webkit-scrollbar{
+        display:none;
+      }
+
+      .drive-toolbar-right{
+        width:100%;
+        margin-left:0;
+        display:grid;
+        grid-template-columns:1fr auto;
+        gap:8px;
+      }
+
+      .drive-sort{
+        grid-column:1 / -1;
+        width:100%;
+      }
+
+      .drive-sort select,
+      .drive-search{
+        width:100%;
+      }
+
+      .drive-sort select,
+      .drive-search input,
+      .drive-filters select,
+      .drive-filters input{
+        min-height:44px;
+        font-size:16px;
+      }
+
+      .drive-view{
+        display:flex;
+        gap:6px;
+      }
+
+      .drive-view .icon-btn{
+        min-height:44px;
+        min-width:54px;
+      }
+
+      .drive-actions{
+        gap:8px;
+      }
+
+      .drive-filters{
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:8px;
+        margin-bottom:0;
+      }
+
+      .drive-filters[hidden]{
+        display:none;
+      }
+
+      .drive-filters select{
+        grid-column:1 / -1;
+      }
+
+      .drive-filters input{
+        min-width:0;
+        width:100%;
+      }
+
+      .drive-cta{
+        position:fixed;
+        left:0;
+        right:0;
+        bottom:0;
+        z-index:850;
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+        padding:10px max(10px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
+        border-top:1px solid var(--app-border-subtle);
+        background:color-mix(in srgb, var(--bg) 94%, transparent);
+        backdrop-filter:blur(14px);
+      }
+
+      .drive-shell[data-read-only="true"] .drive-cta{
+        display:none;
+      }
+
+      .drive-cta .btn{
+        min-height:46px;
+        width:100%;
+      }
+
+      #delete-selected{
+        grid-column:1 / -1;
+      }
+
+      #files-list{
+        overflow:visible;
+      }
+
+      .drive-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:10px;
+      }
+
+      .drive-tile{
+        min-height:138px;
+        padding:10px;
+        border-radius:10px;
+      }
+
+      .tile-thumb{
+        width:100%;
+        flex-basis:72px;
+        min-height:72px;
+        max-height:72px;
+      }
+
+      .tile-name{
+        font-size:0.88rem;
+        line-height:1.25;
+        overflow-wrap:anywhere;
+      }
+
+      .tile-sub{
+        font-size:0.72rem;
+      }
+
+      .item-context-menu{
+        left:10px !important;
+        right:10px;
+        bottom:calc(76px + env(safe-area-inset-bottom));
+        top:auto !important;
+        width:auto;
+        max-height:55dvh;
+        overflow:auto;
+      }
+
+      .item-context-menu-button{
+        min-height:46px;
+      }
+
+      .upload-toast{
+        left:10px;
+        right:10px;
+        bottom:calc(76px + env(safe-area-inset-bottom));
+        max-width:none;
+        min-width:0;
+        border-radius:14px;
+      }
+
+      .modal-overlay{
+        align-items:flex-end;
+        padding:0;
+      }
+
+      .modal-dialog{
+        width:100%;
+        max-height:92dvh;
+        overflow:auto;
+        border-radius:16px 16px 0 0;
+        padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+      }
+
+      .file-viewer-modal-dialog{
+        width:100%;
+        height:100dvh;
+        border-radius:0;
+      }
+
+      .file-viewer-modal-header{
+        padding:12px 14px;
+      }
+
+      .file-viewer-modal-body{
+        padding:12px;
+      }
+
+      .file-viewer-actions{
+        gap:6px;
+      }
+    }
+
+    @media (max-width: 420px){
+      .drive-grid{
+        grid-template-columns:1fr;
+      }
+
+      .drive-toolbar-right{
+        grid-template-columns:1fr;
+      }
+
+      .drive-view{
+        width:100%;
+      }
+
+      .drive-view .icon-btn{
+        flex:1;
+      }
+
+      .drive-filters{
+        grid-template-columns:1fr;
+      }
+    }
   </style>
 {% endblock %}
 
