@@ -51,6 +51,7 @@ class UploadChunkPayload:
     current_url: str
     folder_public_id: str | None = None
     relative_path: str | None = None
+    chunk_start: int | None = None
 
 @dataclass
 class DeleteItemsPayload:

@@ -248,6 +248,8 @@ async def init_schema():
             await execute("ALTER TABLE users CHANGE COLUMN userName username varchar(255) NOT NULL")
         await record_migration("2026_04_27_users_username_normalized")
 
+    await execute("update users set role='admin' where lower(username)='admin' and role <> 'admin'")
+
     if not await is_migration_applied("2026_04_27_share_controls"):
         folder_public_expires_column = await fetch_all("SHOW COLUMNS FROM folders LIKE 'publicExpiresAt'")
         if not folder_public_expires_column:

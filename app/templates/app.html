@@ -1888,6 +1888,10 @@
         const contentType = xhr.getResponseHeader('content-type') || '';
         const responseText = xhr.responseText || '';
 
+        if (xhr.status === 504) {
+          return { detail: 'Upload timed out while the server was processing the file. Please try again.' };
+        }
+
         if (!responseText) {
           return {};
         }
@@ -1954,6 +1958,7 @@
           formData.append('chunkIndex', String(chunkIndex));
           formData.append('totalChunks', String(totalChunks));
           formData.append('chunkSize', String(chunk.size));
+          formData.append('chunkStart', String(start));
           formData.append('isLastChunk', String(chunkIndex === totalChunks - 1));
           formData.append('currentUrl', options.currentUrl);
           formData.append('relativePath', relativePath);

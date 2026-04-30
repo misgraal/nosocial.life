@@ -168,21 +168,43 @@ def build_upload_paths(upload: dict):
 def validate_chunk_payload(payload: UploadChunkPayload):
     if payload.chunk_index < 0 or payload.total_chunks < 1 or payload.chunk_index >= payload.total_chunks:
         raise ValueError("Invalid chunk metadata")
+    if payload.chunk_start is not None:
+        if payload.chunk_start < 0 or payload.chunk_start + payload.chunk_size > payload.file_size:
+            raise ValueError("Invalid chunk offset")
+        if payload.is_last_chunk and payload.chunk_start + payload.chunk_size != payload.file_size:
+            raise ValueError("Invalid final chunk size")
 
 
-def save_chunk(temp_dir: Path, chunk_index: int, chunk_size: int, chunk_bytes: bytes):
-    if len(chunk_bytes) != chunk_size:
+def get_streamed_upload_path(temp_dir: Path) -> Path:
+    return temp_dir / "upload.data"
+
+
+def get_chunk_marker_path(temp_dir: Path, chunk_index: int) -> Path:
+    return temp_dir / f"{chunk_index:08d}.done"
+
+
+def save_chunk(temp_dir: Path, payload: UploadChunkPayload, chunk_bytes: bytes):
+    if len(chunk_bytes) != payload.chunk_size:
         raise ValueError("Chunk size mismatch")
 
-    chunk_path = temp_dir / f"{chunk_index:08d}.part"
+    if payload.chunk_start is not None:
+        upload_path = get_streamed_upload_path(temp_dir)
+        mode = "r+b" if upload_path.exists() else "w+b"
+        with open(upload_path, mode) as file:
+            file.seek(payload.chunk_start)
+            file.write(chunk_bytes)
+        get_chunk_marker_path(temp_dir, payload.chunk_index).touch()
+        return
+
+    chunk_path = temp_dir / f"{payload.chunk_index:08d}.part"
     with open(chunk_path, "wb") as file:
         file.write(chunk_bytes)
 
 
-def assert_no_missing_chunks(temp_dir: Path, total_chunks: int):
+def assert_no_missing_chunks(temp_dir: Path, total_chunks: int, marker_suffix: str = ".part"):
     missing_chunks = [
         index for index in range(total_chunks)
-        if not (temp_dir / f"{index:08d}.part").exists()
+        if not (temp_dir / f"{index:08d}{marker_suffix}").exists()
     ]
     if missing_chunks:
         raise ValueError(f"Missing chunks: {missing_chunks}")
@@ -211,9 +233,12 @@ def assemble_file(temp_dir: Path, final_path: Path, total_chunks: int) -> int:
 
 
 def cleanup_temp_chunks(temp_dir: Path):
-    for part_path in temp_dir.glob("*.part"):
-        part_path.unlink()
-    temp_dir.rmdir()
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def remove_upload_from_memory(upload: dict):
+    if upload in upload_list:
+        upload_list.remove(upload)
 
 
 async def cleanup_stale_upload_chunks():
@@ -428,7 +453,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     temp_dir, final_dir = build_upload_paths(upload)
     safe_file_name = Path(payload.file_name).name
 
-    save_chunk(temp_dir, payload.chunk_index, payload.chunk_size, chunk_bytes)
+    save_chunk(temp_dir, payload, chunk_bytes)
 
     if not payload.is_last_chunk:
         return {
@@ -438,10 +463,16 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
             "totalChunks": payload.total_chunks
         }
 
-    assert_no_missing_chunks(temp_dir, payload.total_chunks)
+    if payload.chunk_start is None:
+        assert_no_missing_chunks(temp_dir, payload.total_chunks)
+        bytes_written = payload.file_size
+    else:
+        assert_no_missing_chunks(temp_dir, payload.total_chunks, marker_suffix=".done")
+        streamed_upload_path = get_streamed_upload_path(temp_dir)
+        if not streamed_upload_path.exists():
+            raise ValueError("Upload data is missing")
+        bytes_written = streamed_upload_path.stat().st_size
 
-    final_path = build_final_path(final_dir, payload.upload_id, payload.file_name)
-    bytes_written = assemble_file(temp_dir, final_path, payload.total_chunks)
     if bytes_written != payload.file_size:
         raise ValueError("Final file size mismatch")
 
@@ -452,10 +483,14 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     storage_quota_bytes = user["storageQuotaBytes"] if user else None
     if storage_quota_bytes is not None and current_usage + bytes_written > storage_quota_bytes:
         cleanup_temp_chunks(temp_dir)
-        upload_list.remove(upload)
-        if final_path.exists():
-            final_path.unlink(missing_ok=True)
+        remove_upload_from_memory(upload)
         raise ValueError("Storage quota exceeded")
+
+    final_path = build_final_path(final_dir, payload.upload_id, payload.file_name)
+    if payload.chunk_start is None:
+        bytes_written = assemble_file(temp_dir, final_path, payload.total_chunks)
+    else:
+        get_streamed_upload_path(temp_dir).replace(final_path)
 
     file = await create_file_db(
         safe_file_name,
@@ -480,7 +515,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     )
 
     cleanup_temp_chunks(temp_dir)
-    upload_list.remove(upload)
+    remove_upload_from_memory(upload)
 
     return {
         "status": "completed",

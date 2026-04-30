@@ -275,6 +275,9 @@ async def toggle_user_role(admin_user_id: int, target_user_id: int) -> dict:
     if user["userID"] == admin_user_id:
         raise ValueError("You cannot change your own role")
 
+    if str(user["username"]).casefold() == "admin":
+        raise ValueError("The admin account must keep admin privileges")
+
     if user["role"] == "admin":
         admin_count = await count_admin_users()
         if admin_count <= 1:

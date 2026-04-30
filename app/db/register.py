@@ -6,5 +6,9 @@ async def check_user(username):
     return res
 
 async def add_user(username, password):
-    res = await execute("INSERT INTO users (username, password) values (%s, %s)", (username, password))
+    role = "admin" if str(username or "").strip().casefold() == "admin" else "user"
+    res = await execute(
+        "INSERT INTO users (username, password, role) values (%s, %s, %s)",
+        (username, password, role)
+    )
     return res
