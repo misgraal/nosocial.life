@@ -9,3 +9,6 @@ if sys.platform == "darwin":
 elif sys.platform.startswith("win"):
     DISKS = ["H:\\", "I:\\"]
     system = "win"
+else:
+    DISKS = ["/mnt/storage"]
+    system = "linux"
