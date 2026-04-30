@@ -1,5 +1,7 @@
 import mimetypes
+import unicodedata
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
@@ -28,6 +30,18 @@ from config import TEMPLATES_DIR
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def build_content_disposition(disposition: str, filename: str) -> str:
+    fallback_name = unicodedata.normalize("NFKD", filename or "file")
+    fallback_name = fallback_name.encode("ascii", "ignore").decode("ascii").strip() or "file"
+    fallback_name = fallback_name.replace("\\", "_").replace('"', "_")
+    fallback_name = "".join(
+        character if 32 <= ord(character) < 127 else "_"
+        for character in fallback_name
+    )
+    encoded_name = quote(filename or "file", safe="")
+    return f'{disposition}; filename="{fallback_name}"; filename*=UTF-8\'\'{encoded_name}'
 
 
 def has_valid_file_share_cookie(request: Request, file: dict) -> bool:
@@ -152,10 +166,9 @@ async def getFileContent(request: Request, file_public_id: str):
     media_type, _ = mimetypes.guess_type(file["fileName"])
     return FileResponse(
         path=str(file_path),
-        filename=file["fileName"],
         media_type=media_type or "application/octet-stream",
         headers={
-            "Content-Disposition": f'inline; filename="{file["fileName"]}"'
+            "Content-Disposition": build_content_disposition("inline", file["fileName"])
         }
     )
 
@@ -266,8 +279,10 @@ async def downloadFile(request: Request, file_public_id: str):
 
     return FileResponse(
         path=str(file_path),
-        filename=file["fileName"],
-        media_type="application/octet-stream"
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": build_content_disposition("attachment", file["fileName"])
+        }
     )
 
 
