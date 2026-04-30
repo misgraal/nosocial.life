@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Request, HTTPException
-from app.schemas import schemas
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.templating import Jinja2Templates
 from app.security.sesions import get_user_id
 from fastapi.responses import RedirectResponse
-from app.db.app import get_user_username_by_id
-from app.services.app import *
+
+from app.services.app import DeleteItemsPayload, MoveItemsPayload, RenameItemPayload, move_items, rename_item, search_drive
+from app.services.files import delete_items
+from app.services.folders import home
 
 
 router = APIRouter()
@@ -23,61 +24,102 @@ async def main(request: Request):
     items = await home(user_id)
     folders = items.folders
     files = items.files
+    breadcrumbs = items.breadcrumbs
+    folder_tree = items.folder_tree
     resp = templates.TemplateResponse(
         "app.html",
         {
             "request": request,
             "folders": folders,
-            "files": files
+            "files": files,
+            "breadcrumbs": breadcrumbs,
+            "folder_tree": folder_tree,
+            "read_only": False
         }
     )
     return resp
 
-@router.post("/app/api/create-folder")
-async def createFolder(request: Request):
+@router.post("/app/api/delete-items")
+async def deleteItems(request: Request):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
     if not user_id:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     data = await request.json()
-    folderName = data.get("name")
-    url = data.get("URLc")
+    payload = DeleteItemsPayload(
+        folder_public_ids=data.get("folderPublicIds", []),
+        file_public_ids=data.get("filePublicIds", [])
+    )
 
-    if not folderName:
-        raise HTTPException(status_code=400, detail="Folder name is required")
-    
+    try:
+        return await delete_items(user_id, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
-    folder = await create_folder(folderName, user_id, url)
-    if folder == 1:
-        return { "error": 1 }
 
-    return {
-        "folder": folder.folder
-    }
-
-@router.get("/app/folders/{publicID}")
-async def folders(request: Request, publicID: str):
+@router.post("/app/api/rename-item")
+async def renameItem(request: Request):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
     if not user_id:
-        return RedirectResponse("/", status_code=303)
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
-    items = await getFoldersContent(publicID)
-    if items == "root":
-        return RedirectResponse("/app/home", status_code=303)
-
-
-    folders = items.folders
-    files = []
-
-    resp = templates.TemplateResponse(
-        "app.html",
-        {
-            "request": request,
-            "folders": folders,
-            "files": files
-        }
+    data = await request.json()
+    payload = RenameItemPayload(
+        folder_public_id=data.get("folderPublicId"),
+        file_public_id=data.get("filePublicId"),
+        new_name=data.get("newName", "")
     )
-    return resp    
 
+    try:
+        return await rename_item(user_id, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+@router.post("/app/api/move-items")
+async def moveItems(request: Request):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    data = await request.json()
+    payload = MoveItemsPayload(
+        folder_public_ids=data.get("folderPublicIds", []),
+        file_public_ids=data.get("filePublicIds", []),
+        destination_public_id=data.get("destinationPublicId")
+    )
+
+    try:
+        return await move_items(user_id, payload)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/app/api/search")
+async def searchDrive(
+    request: Request,
+    query: str = "",
+    kind: str = "all",
+    min_size: int | None = None,
+    max_size: int | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None
+):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        return await search_drive(
+            user_id,
+            query,
+            kind=kind,
+            min_size=min_size,
+            max_size=max_size,
+            date_from=date_from,
+            date_to=date_to
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error

@@ -11,34 +11,47 @@
       align-items:start;
       min-height:70vh;
     }
-    .admin-sidebar{
+
+    .admin-sidebar,
+    .admin-panel,
+    .admin-topbar{
       background:var(--card);
       border-radius:12px;
-      padding:16px;
+      border:1px solid var(--clr-surface-a20);
       box-shadow:0 6px 16px rgba(2,6,23,0.04);
+    }
+
+    .admin-sidebar{
+      padding:16px;
       display:flex;
       flex-direction:column;
       gap:16px;
     }
+
     .admin-brand{
       padding:12px;
       border-radius:10px;
       background:linear-gradient(135deg,var(--clr-surface-tonal-a10),var(--clr-surface-a10));
-      border:1px solid rgba(15,23,42,0.08);
+      border:1px solid var(--clr-surface-a20);
     }
+
     .brand-title{font-weight:700;font-size:1.05rem}
     .brand-sub{color:var(--muted);font-size:0.85rem}
+
     .admin-nav{display:flex;flex-direction:column;gap:8px}
+
     .admin-link{
       text-decoration:none;
       color:var(--text);
       padding:10px 12px;
       border-radius:10px;
       background:var(--clr-surface-a10);
-      border:1px solid rgba(15,23,42,0.06);
+      border:1px solid var(--clr-surface-a20);
       font-weight:500;
     }
+
     .admin-link:hover{background:var(--clr-surface-a20)}
+
     .admin-link.active{
       background:linear-gradient(90deg,var(--accent),var(--accent-2));
       color:#fff;
@@ -46,55 +59,136 @@
     }
 
     .admin-main{display:flex;flex-direction:column;gap:16px;min-width:0}
+
     .admin-topbar{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      background:var(--card);
-      border-radius:12px;
       padding:14px 16px;
-      box-shadow:0 4px 14px rgba(2,6,23,0.04);
     }
+
     .admin-title{font-size:1.3rem;font-weight:700}
     .admin-sub{color:var(--muted);font-size:0.9rem}
     .admin-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .admin-content{
-      display:flex;
-      flex-direction:column;
-      gap:14px;
+
+    .admin-stats{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:12px;
     }
-    .admin-tab-panel{display:none}
-    .admin-tab-panel.is-active{display:block}
-    .admin-panel{
+
+    .stat-card{
       background:var(--card);
+      border:1px solid var(--clr-surface-a20);
       border-radius:12px;
       padding:14px;
       box-shadow:0 4px 14px rgba(2,6,23,0.04);
       display:flex;
       flex-direction:column;
+      gap:6px;
+    }
+
+    .stat-label{
+      color:var(--muted);
+      font-size:0.8rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+    }
+
+    .stat-value{
+      font-size:1.5rem;
+      font-weight:700;
+      color:var(--text);
+    }
+
+    .admin-content{
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .admin-tab-panel{display:none}
+    .admin-tab-panel.is-active{display:block}
+
+    .admin-panel{
+      padding:14px;
+      display:flex;
+      flex-direction:column;
       gap:12px;
       min-width:0;
     }
-    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+    .panel-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
     .panel-title{font-weight:600}
     .panel-meta{color:var(--muted);font-size:0.85rem}
 
-    .admin-table{width:100%;border-collapse:collapse}
+    .admin-error{
+      padding:12px 14px;
+      border-radius:10px;
+      background:var(--clr-danger-a20);
+      color:var(--clr-danger-a0);
+      border:1px solid var(--clr-danger-a10);
+    }
+
+    .admin-table-wrap{
+      overflow:auto;
+    }
+
+    .admin-table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:760px;
+    }
+
     .admin-table th{
       text-align:left;
       padding:8px 6px;
-      font-size:0.7rem;
+      font-size:0.72rem;
       letter-spacing:0.08em;
       text-transform:uppercase;
       color:var(--muted);
     }
+
     .admin-table td{
       padding:10px 6px;
-      border-top:1px solid rgba(15,23,42,0.06);
-      font-size:0.9rem;
+      border-top:1px solid var(--clr-surface-a20);
+      font-size:0.92rem;
+      color:var(--text);
+      vertical-align:middle;
     }
-    .table-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+    .user-name{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+
+    .user-name strong{
+      font-size:0.96rem;
+    }
+
+    .user-name span{
+      color:var(--muted);
+      font-size:0.82rem;
+    }
+
+    .table-actions{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+
+    .table-actions form{
+      margin:0;
+    }
+
     .status-badge{
       display:inline-flex;
       align-items:center;
@@ -105,9 +199,193 @@
       background:var(--clr-surface-tonal-a20);
       color:var(--text);
     }
-    .status-ok{background:rgba(34,197,94,0.16);color:var(--clr-success-a10)}
-    .status-warn{background:rgba(245,158,11,0.16);color:var(--clr-warning-a0)}
-    .status-bad{background:rgba(239,68,68,0.16);color:var(--clr-danger-a10)}
+
+    .status-admin{
+      background:var(--clr-success-a20);
+      color:var(--clr-success-a0);
+    }
+
+    .status-user{
+      background:var(--clr-info-a20);
+      color:var(--clr-info-a0);
+    }
+
+    .status-blocked{
+      background:var(--clr-danger-a20);
+      color:var(--clr-danger-a0);
+    }
+
+    .status-active{
+      background:var(--clr-success-a20);
+      color:var(--clr-success-a0);
+    }
+
+    .status-stack{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+
+    .quota-form{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .quota-form input{
+      width:96px;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--clr-surface-a20);
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .quota-help{
+      color:var(--muted);
+      font-size:0.78rem;
+    }
+
+    .admin-filter{
+      max-width:280px;
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--clr-surface-a20);
+      background:var(--bg);
+      color:var(--text);
+    }
+
+    .audit-details{
+      color:var(--muted);
+      font-size:0.82rem;
+      max-width:320px;
+      word-break:break-word;
+      white-space:pre-wrap;
+    }
+
+    .inspect-panel{
+      margin-top:14px;
+    }
+
+    .inspect-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:14px;
+    }
+
+    .inspect-list{
+      border:1px solid var(--clr-surface-a20);
+      border-radius:12px;
+      overflow:auto;
+      max-height:340px;
+    }
+
+    .inspect-list table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    .inspect-list th,
+    .inspect-list td{
+      padding:9px 10px;
+      border-top:1px solid var(--clr-surface-a20);
+      text-align:left;
+      font-size:0.86rem;
+      vertical-align:top;
+    }
+
+    .inspect-list th{
+      border-top:0;
+      color:var(--muted);
+      font-size:0.72rem;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      background:var(--clr-surface-a10);
+      position:sticky;
+      top:0;
+    }
+
+    .inspect-empty{
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+
+    .disk-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+      gap:12px;
+    }
+
+    .disk-settings-form{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .disk-settings-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:10px;
+    }
+
+    .disk-toggle{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      padding:12px;
+      border-radius:12px;
+      border:1px solid var(--clr-surface-a20);
+      background:var(--clr-surface-a10);
+    }
+
+    .disk-toggle input{
+      margin-top:3px;
+    }
+
+    .disk-toggle-copy{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width:0;
+    }
+
+    .disk-toggle-copy strong{
+      font-size:0.94rem;
+    }
+
+    .disk-toggle-copy span{
+      color:var(--muted);
+      font-size:0.82rem;
+      word-break:break-all;
+    }
+
+    .disk-card{
+      background:var(--clr-surface-a10);
+      border-radius:12px;
+      padding:14px;
+      border:1px solid var(--clr-surface-a20);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .disk-card-title{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .disk-card-title strong{
+      font-size:1rem;
+    }
+
+    .disk-card-title span{
+      color:var(--muted);
+      font-size:0.82rem;
+      word-break:break-all;
+    }
 
     .disk-usage{
       display:flex;
@@ -115,25 +393,11 @@
       gap:16px;
       flex-wrap:wrap;
     }
-    .disk-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-      gap:12px;
-    }
-    .disk-card{
-      background:var(--clr-surface-a10);
-      border-radius:12px;
-      padding:12px;
-      border:1px solid rgba(15,23,42,0.06);
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .disk-card-title{font-weight:600}
+
     .disk-chart{
-      --percent: 73;
-      width:160px;
-      height:160px;
+      --percent:0;
+      width:150px;
+      height:150px;
       border-radius:50%;
       background:conic-gradient(var(--accent) calc(var(--percent) * 1%),var(--clr-surface-a20) 0);
       display:grid;
@@ -141,6 +405,7 @@
       position:relative;
       box-shadow:0 10px 20px rgba(2,6,23,0.08);
     }
+
     .disk-chart::before{
       content:"";
       position:absolute;
@@ -148,21 +413,26 @@
       height:70%;
       border-radius:50%;
       background:var(--card);
-      box-shadow:inset 0 0 0 1px rgba(15,23,42,0.08);
+      box-shadow:inset 0 0 0 1px var(--clr-surface-a20);
     }
+
     .disk-percent{
       position:relative;
       z-index:1;
       text-align:center;
     }
-    .disk-value{font-size:1.4rem;font-weight:700}
+
+    .disk-value{font-size:1.35rem;font-weight:700}
     .disk-label{color:var(--muted);font-size:0.85rem}
+
     .disk-metrics{
       display:flex;
       flex-direction:column;
       gap:10px;
       min-width:180px;
+      flex:1 1 auto;
     }
+
     .disk-metric{
       display:flex;
       align-items:center;
@@ -170,26 +440,19 @@
       gap:12px;
       font-size:0.9rem;
     }
+
     .disk-metric span:last-child{font-weight:600}
-    .disk-dot{
-      width:8px;
-      height:8px;
-      border-radius:50%;
-      display:inline-block;
-      margin-right:6px;
-      background:var(--accent);
-    }
-    .disk-dot.free{background:var(--clr-surface-a30)}
 
     @media(max-width:1100px){
       .admin-shell{grid-template-columns:1fr}
       .admin-sidebar{order:2}
-      .admin-content{grid-template-columns:1fr}
     }
+
     @media(max-width:900px){
       .admin-topbar{flex-direction:column;align-items:flex-start}
       .admin-actions{width:100%}
       .disk-usage{justify-content:center}
+      .admin-table{min-width:680px}
     }
   </style>
 {% endblock %}
@@ -201,127 +464,375 @@
 {% endblock %}
 
 {% block content %}
-  {% set status_classes = {
-    'Active': 'status-ok',
-    'Review': 'status-warn',
-    'Suspended': 'status-bad'
-  } %}
-  {% set disks = [
-    {
-      'name': 'System (SSD-1)',
-      'percent': 68,
-      'used': '340 GB',
-      'free': '160 GB',
-      'total': '500 GB',
-      'alerts': '4%'
-    },
-    {
-      'name': 'Media (HDD-2)',
-      'percent': 81,
-      'used': '1.62 TB',
-      'free': '0.38 TB',
-      'total': '2 TB',
-      'alerts': '18%'
-    },
-    {
-      'name': 'Archive (HDD-3)',
-      'percent': 42,
-      'used': '1.05 TB',
-      'free': '1.45 TB',
-      'total': '2.5 TB',
-      'alerts': '0%'
-    }
-  ] %}
   <div class="admin-shell">
     <aside class="admin-sidebar">
       <div class="admin-brand">
         <div class="brand-title">NoSocial Admin</div>
-        <div class="brand-sub">Users + Storage</div>
+        <div class="brand-sub">Signed in as {{ current_user.username }}</div>
       </div>
 
       <nav class="admin-nav" role="tablist">
-        <a class="admin-link active" href="#" role="tab" aria-selected="true" aria-controls="tab-users" data-tab="users">Users</a>
-        <a class="admin-link" href="#" role="tab" aria-selected="false" aria-controls="tab-disk" data-tab="disk">Disk usage</a>
+        <a class="admin-link{% if current_tab == 'users' %} active{% endif %}" href="#" role="tab" aria-selected="{{ 'true' if current_tab == 'users' else 'false' }}" aria-controls="tab-users" data-tab="users">Users</a>
+        <a class="admin-link{% if current_tab == 'access' %} active{% endif %}" href="#" role="tab" aria-selected="{{ 'true' if current_tab == 'access' else 'false' }}" aria-controls="tab-access" data-tab="access">Access</a>
+        <a class="admin-link{% if current_tab == 'disk' %} active{% endif %}" href="#" role="tab" aria-selected="{{ 'true' if current_tab == 'disk' else 'false' }}" aria-controls="tab-disk" data-tab="disk">Disk usage</a>
+        <a class="admin-link{% if current_tab == 'audit' %} active{% endif %}" href="#" role="tab" aria-selected="{{ 'true' if current_tab == 'audit' else 'false' }}" aria-controls="tab-audit" data-tab="audit">Audit log</a>
       </nav>
     </aside>
 
     <section class="admin-main">
       <div class="admin-topbar">
         <div>
-          <div class="admin-title">Admin</div>
-          <div class="admin-sub">User management and disk usage</div>
+          <div class="admin-title">Admin Panel</div>
+          <div class="admin-sub">User management, storage overview and disk health</div>
         </div>
         <div class="admin-actions">
-          <button class="btn secondary" type="button">Import users</button>
-          <button class="btn primary" type="button">Invite user</button>
+          <a class="btn secondary" href="/app/home">Back to Drive</a>
         </div>
       </div>
+
+      <div class="admin-stats">
+        <div class="stat-card">
+          <div class="stat-label">Users</div>
+          <div class="stat-value">{{ stats.totalUsers }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Admins</div>
+          <div class="stat-value">{{ stats.adminUsers }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Files</div>
+          <div class="stat-value">{{ stats.totalFiles }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Folders</div>
+          <div class="stat-value">{{ stats.totalFolders }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Stored Data</div>
+          <div class="stat-value">{{ stats.totalStorage }}</div>
+        </div>
+      </div>
+
+      {% if error %}
+        <div class="admin-error">{{ error }}</div>
+      {% endif %}
 
       <div class="admin-content" data-tab-panels>
-        <div class="admin-tab-panel is-active" id="tab-users" role="tabpanel" data-tab-panel="users">
+        <div class="admin-tab-panel{% if current_tab == 'users' %} is-active{% endif %}" id="tab-users" role="tabpanel" data-tab-panel="users" {% if current_tab != 'users' %}hidden{% endif %}>
           <div class="admin-panel">
             <div class="panel-head">
-              <div class="panel-title">User management</div>
-              <button class="btn secondary" type="button">Filter</button>
+              <div class="panel-title">Users</div>
+              <div class="panel-meta">{{ users|length }} user(s)</div>
             </div>
-            <div class="panel-meta">1284 total users</div>
-            <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Storage</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-            <tbody>
-              {% for user in users %}
-                <tr>
-                  <td>{{ user.username }}</td>
-                  <td>{{ user.role }}</td>
-                  <td>{{ user.storage }}</td>
-                  <td><span class="status-badge {{ status_classes.get(user.status, '') }}">{{ user.status }}</span></td>
-                  <td>
-                    <div class="table-actions">
-                      {% for action in user.actions %}
-                        <button class="btn {{ action[1] }}" type="button">{{ action[0] }}</button>
-                      {% endfor %}
-                    </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <input class="admin-filter" type="search" placeholder="Filter users" data-admin-filter="users">
 
-        <div class="admin-tab-panel" id="tab-disk" role="tabpanel" data-tab-panel="disk">
+            <div class="admin-table-wrap">
+              <table class="admin-table" data-admin-table="users">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Files</th>
+                    <th>Folders</th>
+                    <th>Storage</th>
+                    <th>Quota</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in users %}
+                    <tr>
+                      <td>
+                        <div class="user-name">
+                          <strong>{{ user.username }}</strong>
+                          <span>{% if user.isCurrentUser %}Current session{% else %}User ID {{ user.userID }}{% endif %}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="status-badge {{ 'status-admin' if user.role == 'admin' else 'status-user' }}">{{ user.role }}</span>
+                      </td>
+                      <td>
+                        <div class="status-stack">
+                          <span class="status-badge {{ 'status-blocked' if user.blocked else 'status-active' }}">
+                            {{ 'blocked' if user.blocked else 'active' }}
+                          </span>
+                          {% if user.isCurrentUser %}
+                            <span class="status-badge">current</span>
+                          {% endif %}
+                        </div>
+                      </td>
+                      <td>{{ user.fileCount }}</td>
+                      <td>{{ user.folderCount }}</td>
+                      <td>{{ user.totalSize }}</td>
+                      <td>
+                        <form class="quota-form" action="/admin/users/{{ user.userID }}/quota" method="post">
+                          <input
+                            type="number"
+                            name="storage_quota_gb"
+                            min="0"
+                            step="0.1"
+                            placeholder="Unlimited"
+                            value="{{ ((user.storageQuotaBytes / 1073741824)|round(1)) if user.storageQuotaBytes is not none else '' }}"
+                          >
+                          <button class="btn secondary" type="submit">Save</button>
+                        </form>
+                        <div class="quota-help">{{ user.storageQuota }}</div>
+                      </td>
+                      <td>
+                        <div class="table-actions">
+                          {% if not user.isCurrentUser %}
+                            <form action="/admin/users/{{ user.userID }}/toggle-block" method="post">
+                              <button class="btn secondary" type="submit">
+                                {% if user.blocked %}Unblock{% else %}Block{% endif %}
+                              </button>
+                            </form>
+                          {% endif %}
+                          <a class="btn secondary" href="/admin?tab=users&inspect_user={{ user.userID }}">Browse</a>
+                          {% if user.canPromote or user.canDemote %}
+                            <form action="/admin/users/{{ user.userID }}/toggle-role" method="post">
+                              <button class="btn secondary" type="submit">
+                                {% if user.role == 'admin' %}Demote to User{% else %}Promote to Admin{% endif %}
+                              </button>
+                            </form>
+                          {% endif %}
+                          {% if user.canDelete %}
+                            <form action="/admin/users/{{ user.userID }}/delete" method="post" onsubmit="return window.confirm('Delete {{ user.username }} and all related files?');">
+                              <button class="btn primary" type="submit">Delete</button>
+                            </form>
+                          {% endif %}
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="admin-panel inspect-panel">
+              <div class="panel-head">
+                <div class="panel-title">
+                  {% if inspected_user %}
+                    {{ inspected_user.username }} content
+                  {% else %}
+                    User content
+                  {% endif %}
+                </div>
+                <div class="panel-meta">
+                  {% if inspected_user %}
+                    {{ inspected_items.files|length if inspected_items else 0 }} file(s), {{ inspected_items.folders|length if inspected_items else 0 }} folder(s)
+                  {% else %}
+                    Select a user with Browse
+                  {% endif %}
+                </div>
+              </div>
+
+              {% if inspected_user and inspected_items %}
+                <div class="inspect-grid">
+                  <div class="inspect-list">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Folders</th>
+                          <th>Access</th>
+                          <th>Path</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for folder in inspected_items.folders %}
+                          <tr>
+                            <td>{{ folder.folderName }}</td>
+                            <td>{{ 'Public' if folder.public else 'Private' }}</td>
+                            <td>{{ folder.path }}</td>
+                          </tr>
+                        {% else %}
+                          <tr><td colspan="3" class="inspect-empty">No folders.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="inspect-list">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Files</th>
+                          <th>Size</th>
+                          <th>Access</th>
+                          <th>Path</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for file in inspected_items.files %}
+                          <tr>
+                            <td>{{ file.fileName }}</td>
+                            <td>{{ file.size }}</td>
+                            <td>{{ 'Public' if file.public else 'Private' }}</td>
+                            <td>{{ file.path }}</td>
+                          </tr>
+                        {% else %}
+                          <tr><td colspan="4" class="inspect-empty">No files.</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              {% else %}
+                <div class="inspect-empty">Open a user from the table to inspect their folders and files.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel{% if current_tab == 'access' %} is-active{% endif %}" id="tab-access" role="tabpanel" data-tab-panel="access" {% if current_tab != 'access' %}hidden{% endif %}>
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div class="panel-title">Public access</div>
+              <div class="panel-meta">{{ share_items|length }} public item(s)</div>
+            </div>
+            <input class="admin-filter" type="search" placeholder="Filter public items" data-admin-filter="access">
+
+            <div class="admin-table-wrap">
+              <table class="admin-table" data-admin-table="access">
+                <thead>
+                  <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Owner</th>
+                    <th>Expires</th>
+                    <th>Download</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in share_items %}
+                    <tr>
+                      <td>{{ item.itemType }}</td>
+                      <td>{{ item.name }}</td>
+                      <td>{{ item.owner }}</td>
+                      <td>{{ item.expiresAt or 'Never' }}</td>
+                      <td>
+                        {% if item.itemType == 'file' %}
+                          {{ 'Allowed' if item.allowDownload else 'Blocked' }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                      <td>
+                        <div class="table-actions">
+                          {% if item.itemType == 'file' %}
+                            <form action="/admin/shares/files/{{ item.publicID }}/revoke" method="post">
+                              <button class="btn secondary" type="submit">Revoke</button>
+                            </form>
+                          {% else %}
+                            <form action="/admin/shares/folders/{{ item.publicID }}/revoke" method="post">
+                              <button class="btn secondary" type="submit">Revoke</button>
+                            </form>
+                          {% endif %}
+                        </div>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="6">No public files or folders.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel{% if current_tab == 'disk' %} is-active{% endif %}" id="tab-disk" role="tabpanel" data-tab-panel="disk" {% if current_tab != 'disk' %}hidden{% endif %}>
           <div class="admin-panel">
             <div class="panel-head">
               <div class="panel-title">Disk usage</div>
-              <div class="panel-meta">Updated 2 min ago</div>
+              <div class="panel-meta">{{ disks|length }} configured path(s)</div>
             </div>
+
+            <form class="disk-settings-form" action="/admin/disks" method="post">
+              <div class="panel-meta">Choose which disks can receive new uploads.</div>
+              <div class="disk-settings-grid">
+                {% for disk in disks %}
+                  <label class="disk-toggle">
+                    <input type="checkbox" name="selected_disks" value="{{ disk.path }}" {% if disk.isEnabled %}checked{% endif %}>
+                    <div class="disk-toggle-copy">
+                      <strong>{{ disk.name }}</strong>
+                      <span>{{ disk.path }}</span>
+                    </div>
+                  </label>
+                {% endfor %}
+              </div>
+              <div>
+                <button class="btn primary" type="submit">Save disk selection</button>
+              </div>
+            </form>
+
             <div class="disk-grid">
               {% for disk in disks %}
                 <div class="disk-card">
-                  <div class="disk-card-title">{{ disk.name }}</div>
+                  <div class="disk-card-title">
+                    <strong>{{ disk.name }}</strong>
+                    <span>{{ disk.path }}</span>
+                  </div>
+
                   <div class="disk-usage">
                     <div class="disk-chart" style="--percent:{{ disk.percent }}">
                       <div class="disk-percent">
                         <div class="disk-value">{{ disk.percent }}%</div>
-                        <div class="disk-label">used</div>
+                        <div class="disk-label">device used</div>
                       </div>
                     </div>
+
                     <div class="disk-metrics">
-                      <div class="disk-metric"><span><span class="disk-dot"></span>Used</span><span>{{ disk.used }}</span></div>
-                      <div class="disk-metric"><span><span class="disk-dot free"></span>Free</span><span>{{ disk.free }}</span></div>
+                      <div class="disk-metric"><span>Uploads</span><span>{{ 'Enabled' if disk.isEnabled else 'Disabled' }}</span></div>
+                      <div class="disk-metric"><span>Used</span><span>{{ disk.used }}</span></div>
+                      <div class="disk-metric"><span>Free</span><span>{{ disk.free }}</span></div>
                       <div class="disk-metric"><span>Total</span><span>{{ disk.total }}</span></div>
-                      <div class="disk-metric"><span>Alerts</span><span>{{ disk.alerts }}</span></div>
+                      <div class="disk-metric"><span>App data</span><span>{{ disk.appUsed }}</span></div>
+                      <div class="disk-metric"><span>App share</span><span>{{ disk.appPercent }}%</span></div>
                     </div>
                   </div>
                 </div>
               {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-tab-panel{% if current_tab == 'audit' %} is-active{% endif %}" id="tab-audit" role="tabpanel" data-tab-panel="audit" {% if current_tab != 'audit' %}hidden{% endif %}>
+          <div class="admin-panel">
+            <div class="panel-head">
+              <div class="panel-title">Audit log</div>
+              <div class="panel-meta">{{ audit_logs|length }} recent event(s)</div>
+            </div>
+
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for log in audit_logs %}
+                    <tr>
+                      <td>{{ log.createdAt }}</td>
+                      <td>{{ log.username or ("User ID " ~ log.userID) }}</td>
+                      <td>{{ log.action }}</td>
+                      <td>{{ log.targetType or 'system' }}{% if log.targetPublicID %}: {{ log.targetPublicID }}{% endif %}</td>
+                      <td><div class="audit-details">{{ log.details or '—' }}</div></td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="5">No audit events yet.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

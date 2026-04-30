@@ -21,7 +21,10 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     if(item){
-      item.addEventListener('click', function(){
+      item.addEventListener('click', function(event){
+        if(event.target.closest('.tree-link')){
+          return;
+        }
         node.classList.toggle('expanded');
         node.classList.toggle('collapsed');
       });

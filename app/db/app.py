@@ -1,44 +1,40 @@
-from app.db.db import fetch_one, fetch_all, execute
-from app.security.folderHashGenerator import generateRandomHash
+import json
+
+from app.db.db import execute, fetch_all, fetch_one
+
 
 async def get_user_username_by_id(id: int):
     res = await fetch_one("SELECT username FROM users WHERE userID=%s", (id,))
     return res["username"]
 
-async def get_users_root_folder(id: int):
-    res = await fetch_all("select folderID from folders where userID=%s and parentFolderID is null", (id,))
-    return res
 
-async def add_root_folder(userID, folderName):
-    res = await execute("insert into folders (userID, folderName, createdAt, lastModified, publicID) values (%s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)", (userID, folderName, generateRandomHash(),))
-    return res
+async def create_audit_log(user_id: int | None, action: str, target_type: str | None = None, target_public_id: str | None = None, details: dict | None = None):
+    details_payload = json.dumps(details or {}, ensure_ascii=True)
+    await execute(
+        """
+        insert into audit_logs (userID, action, targetType, targetPublicID, details, createdAt)
+        values (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        """,
+        (user_id, action, target_type, target_public_id, details_payload)
+    )
 
-async def get_users_roots_child_folders(id: int):
-    res = await fetch_all("SELECT publicID, folderName, lastModified from folders where userID=%s and parentFolderID in (select folderID from folders where userID=%s and parentFolderID is null)", (id, id,))
-    return res
 
-async def get_users_roots_child_files(id: int):
-    res = await fetch_all("select fileID, fileName, sizeBytes, previewPath, lastModified from files where userID = %s and folderID is null", (id,))
-    return res
-
-async def create_folder_db(folderName, userID, parentFolderID):
-    publicID = generateRandomHash()
-    await execute("insert into folders (userID, folderName, parentFolderID, createdAt, lastModified, publicID) values (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s)", (userID, folderName, parentFolderID, publicID,))
-    res = await fetch_one("select publicID, folderName, lastModified from folders where userID=%s and publicID=%s", (userID, publicID,))
-    return res
-
-async def get_folder_id_by_public_id(publicID):
-    res = await fetch_one("select folderID from folders where publicID=%s", (publicID,))
-    return res
-
-async def get_folders_names_in_folder(userID, folderID):
-    res = await fetch_all("select folderName from folders where userID=%s and parentFolderID=%s", (userID, folderID,))
-    return res
-
-async def get_folders_child_folders(folderID):
-    res = await fetch_all("select publicID, folderName, lastModified from folders where parentFolderID=%s", (folderID,))
-    return res
-
-async def get_parent_folder(folderID):
-    res = await fetch_one("select parentFolderID from folders where folderID=%s", (folderID,))
-    return res
+async def get_audit_logs(limit: int = 200):
+    return await fetch_all(
+        """
+        select
+            audit_logs.logID,
+            audit_logs.userID,
+            users.username,
+            audit_logs.action,
+            audit_logs.targetType,
+            audit_logs.targetPublicID,
+            audit_logs.details,
+            audit_logs.createdAt
+        from audit_logs
+        left join users on users.userID = audit_logs.userID
+        order by audit_logs.createdAt desc, audit_logs.logID desc
+        limit %s
+        """,
+        (limit,)
+    )

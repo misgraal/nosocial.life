@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block title %}Unlock {{ item_type }}{% endblock %}
+
+{% block head %}
+  <style>
+    .share-unlock-shell{
+      min-height:calc(100dvh - 120px);
+      display:grid;
+      place-items:center;
+      padding:24px;
+    }
+
+    .share-unlock-card{
+      width:min(100%, 420px);
+      padding:28px;
+      border-radius:18px;
+      background:var(--card);
+      border:1px solid var(--clr-surface-a20);
+      box-shadow:0 18px 40px rgba(2,6,23,0.12);
+    }
+
+    .share-unlock-title{
+      margin:0 0 10px;
+      font-size:1.35rem;
+    }
+
+    .share-unlock-copy{
+      margin:0 0 18px;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .share-unlock-form{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .share-unlock-form input{
+      width:100%;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid var(--clr-surface-a20);
+      background:var(--clr-surface-a10);
+      color:var(--text);
+    }
+
+    .share-unlock-error{
+      color:var(--danger);
+      font-size:0.9rem;
+      min-height:20px;
+    }
+
+    .share-unlock-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="share-unlock-shell">
+    <div class="share-unlock-card">
+      <h1 class="share-unlock-title">Protected {{ item_type }}</h1>
+      <p class="share-unlock-copy">{{ item_name }} requires a password before it can be opened.</p>
+
+      <form class="share-unlock-form" action="{{ unlock_action }}" method="post">
+        <input name="password" type="password" placeholder="Password" required autofocus>
+        <div class="share-unlock-error">{{ error or '' }}</div>
+        <div class="share-unlock-actions">
+          <a class="btn secondary" href="{{ back_url }}">Back</a>
+          <button class="btn primary" type="submit">Unlock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

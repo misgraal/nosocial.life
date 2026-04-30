@@ -2,8 +2,46 @@
 
 {% block title %}NoSocial Files{% endblock %}
 
+{% macro render_tree_node(node) %}
+  <li class="tree-node{% if node.expanded %} expanded{% else %} collapsed{% endif %}{% if node.active %} active{% endif %}">
+    <div class="tree-item">
+      <span class="tree-caret"></span>
+      <span class="tree-icon"></span>
+      <a class="tree-link" href="{{ node.url }}">
+        <span class="tree-label">{{ node.folderName }}</span>
+      </a>
+    </div>
+    {% if node.children %}
+      <ul class="tree-children">
+        {% for child in node.children %}
+          {{ render_tree_node(child) }}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{% endmacro %}
+
 {% block head %}
   <style>
+    :root{
+      --app-border: var(--clr-surface-a30);
+      --app-border-soft: var(--clr-surface-a20);
+      --app-border-subtle: var(--clr-surface-a20);
+      --app-panel-muted: var(--clr-surface-a10);
+      --app-row-alt: var(--clr-surface-a10);
+      --app-row-hover: var(--clr-surface-a20);
+      --app-selected-bg: var(--clr-surface-tonal-a20);
+      --app-selected-soft: var(--clr-surface-tonal-a10);
+      --app-info-border: var(--clr-info-a10);
+      --app-info-soft: var(--clr-info-a20);
+      --app-success-border: var(--clr-success-a10);
+      --app-danger-border: var(--clr-danger-a10);
+      --app-danger-soft: var(--clr-danger-a20);
+      --app-shadow-lg: 0 24px 60px rgba(2,6,23,0.25);
+      --app-shadow-md: 0 18px 40px rgba(2,6,23,0.18);
+      --app-shadow-sm: 0 18px 40px rgba(2,6,23,0.16);
+    }
+
     .modal-overlay{
       position:fixed;
       inset:0;
@@ -23,9 +61,9 @@
     .modal-dialog{
       width:min(100%, 440px);
       background:var(--card);
-      border:1px solid rgba(15,23,42,0.08);
+      border:1px solid var(--app-border);
       border-radius:16px;
-      box-shadow:0 24px 60px rgba(15,23,42,0.25);
+      box-shadow:var(--app-shadow-lg);
       padding:24px;
     }
 
@@ -52,8 +90,8 @@
       width:36px;
       height:36px;
       border-radius:999px;
-      border:1px solid rgba(15,23,42,0.08);
-      background:var(--clr-surface-a10);
+      border:1px solid var(--app-border);
+      background:var(--app-panel-muted);
       color:var(--text);
       cursor:pointer;
       font-size:1.2rem;
@@ -77,16 +115,18 @@
       font-weight:600;
     }
 
-    .modal-field input{
+    .modal-field input,
+    .modal-field select{
       width:100%;
       padding:11px 12px;
       border-radius:10px;
-      border:1px solid rgba(15,23,42,0.08);
-      background:var(--clr-surface-a10);
+      border:1px solid var(--app-border);
+      background:var(--app-panel-muted);
       color:var(--text);
     }
 
-    .modal-field input:focus{
+    .modal-field input:focus,
+    .modal-field select:focus{
       outline:none;
       border-color:var(--accent);
       box-shadow:0 0 0 4px rgba(230,30,76,0.12);
@@ -116,108 +156,1140 @@
       font-size:0.82rem;
     }
 
+    .warning-modal-dialog{
+      width:min(100%, 420px);
+    }
+
+    .warning-badge{
+      width:48px;
+      height:48px;
+      border-radius:14px;
+      display:grid;
+      place-items:center;
+      background:var(--app-danger-soft);
+      color:var(--danger);
+      font-size:1.4rem;
+      font-weight:700;
+      flex:0 0 48px;
+    }
+
+    .warning-modal-copy{
+      flex:1 1 auto;
+      min-width:0;
+    }
+
+    .warning-modal-text{
+      margin:0;
+      color:var(--muted);
+      line-height:1.45;
+      font-size:0.94rem;
+    }
+
     .drive-tile.folder{
       cursor:pointer;
+    }
+
+    .drive-tile.file{
+      cursor:pointer;
+    }
+
+    body{
+      height:100dvh;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+
+    main{
+      flex:1 1 auto;
+      min-height:0;
+      overflow:hidden;
+    }
+
+    main > .container.full-bleed{
+      height:100%;
+      min-height:0;
+      padding-top:0;
+      padding-bottom:0;
+    }
+
+    .site-footer{
+      display:none;
+    }
+
+    .drive-shell{
+      height:100%;
+      min-height:0;
+    }
+
+    .drive-shell[data-read-only="true"] .drive-cta{
+      display:none;
+    }
+
+    .drive-shell[data-read-only="true"] .item-context-menu{
+      display:none !important;
+    }
+
+    .drive-main{
+      min-height:0;
+      overflow:hidden;
+    }
+
+    #files-list{
+      flex:1 1 auto;
+      min-height:0;
+      align-content:start;
+      overflow-y:auto;
+      overflow-x:hidden;
+    }
+
+    #files-list{
+      position:relative;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+
+    .selection-box{
+      position:absolute;
+      border:1px solid var(--app-info-border);
+      background:color-mix(in srgb, var(--app-info-soft) 55%, transparent);
+      border-radius:8px;
+      pointer-events:none;
+      z-index:20;
+    }
+
+    .selection-box[hidden]{
+      display:none;
+    }
+
+    #delete-selected{
+      display:none;
+    }
+
+    .item-context-menu{
+      position:fixed;
+      min-width:220px;
+      padding:8px;
+      border:1px solid var(--app-border);
+      border-radius:14px;
+      background:var(--card);
+      box-shadow:var(--app-shadow-md);
+      z-index:1200;
+    }
+
+    .item-context-menu[hidden]{
+      display:none;
+    }
+
+    .item-context-menu-button{
+      width:100%;
+      border:0;
+      background:transparent;
+      color:var(--text);
+      text-align:left;
+      padding:10px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      font:inherit;
+    }
+
+    .item-context-menu-button:hover{
+      background:var(--clr-surface-a20);
+    }
+
+    .item-context-menu-button.danger{
+      color:var(--danger);
+    }
+
+    .upload-toast{
+      --progress:0;
+      position:fixed;
+      right:24px;
+      bottom:24px;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width:280px;
+      max-width:min(360px, calc(100vw - 32px));
+      padding:14px 16px;
+      border-radius:18px;
+      border:1px solid var(--app-border);
+      background:color-mix(in srgb, var(--card) 92%, transparent);
+      box-shadow:var(--app-shadow-sm);
+      backdrop-filter:blur(14px);
+      z-index:1100;
+    }
+
+    .upload-toast[hidden]{
+      display:none;
+    }
+
+    .upload-toast[data-state="success"]{
+      border-color:var(--app-success-border);
+    }
+
+    .upload-toast[data-state="error"]{
+      border-color:var(--app-danger-border);
+    }
+
+    .upload-progress-ring{
+      position:relative;
+      flex:0 0 58px;
+      width:58px;
+      height:58px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at center, var(--bg) 58%, transparent 59%),
+        conic-gradient(var(--ring-color, var(--accent)) calc(var(--progress) * 1%), var(--clr-surface-a30) 0);
+      display:grid;
+      place-items:center;
+    }
+
+    .upload-progress-ring span{
+      position:relative;
+      z-index:1;
+      font-size:0.78rem;
+      font-weight:700;
+      color:var(--text);
+    }
+
+    .upload-toast-copy{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+    }
+
+    .upload-toast-title{
+      font-size:0.95rem;
+      font-weight:700;
+      color:var(--text);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .upload-toast-meta{
+      font-size:0.83rem;
+      color:var(--muted);
+      line-height:1.35;
+    }
+
+    .tile-name{
+      display:block;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .drive-tile{
+      height:210px;
+      min-height:210px;
+    }
+
+    .drive-tile.drop-target{
+      outline:2px solid var(--accent);
+      outline-offset:-2px;
+      background:var(--app-selected-soft);
+    }
+
+    .drive-nav{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width:0;
+      flex:0 1 auto;
+    }
+
+    .drive-nav-buttons{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex:0 0 auto;
+    }
+
+    .drive-nav-buttons .icon-btn{
+      min-width:38px;
+      padding:6px 0;
+      color:var(--text);
+      background:var(--clr-surface-a10);
+      border-color:var(--clr-surface-a30);
+      transition:background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+    }
+
+    .drive-nav-buttons .icon-btn:hover{
+      background:var(--clr-surface-a20);
+    }
+
+    .drive-breadcrumbs{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width:0;
+      flex:0 1 auto;
+      flex-wrap:nowrap;
+      overflow:hidden;
+      white-space:nowrap;
+      font-size:clamp(1.45rem, 2vw, 2.1rem);
+      line-height:1.1;
+    }
+
+    .crumb-link{
+      color:var(--muted);
+      text-decoration:none;
+      font-weight:500;
+      transition:color 180ms ease;
+    }
+
+    .crumb-link:hover{
+      color:var(--text);
+    }
+
+    .crumb-separator{
+      color:var(--muted);
+      font-size:1.15em;
+      line-height:1;
+      flex:0 0 auto;
+    }
+
+    .crumb.current{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      color:var(--text);
+      font-weight:600;
+      min-width:0;
+    }
+
+    .crumb-label{
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .crumb-caret{
+      width:0;
+      height:0;
+      border-left:6px solid transparent;
+      border-right:6px solid transparent;
+      border-top:7px solid currentColor;
+      opacity:0.9;
+      transform:translateY(2px);
+      flex:0 0 auto;
+    }
+
+    .tree-link{
+      flex:1;
+      min-width:0;
+      color:inherit;
+      text-decoration:none;
+      display:block;
+    }
+
+    .drive-sidebar-links{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-bottom:14px;
+    }
+
+    .drive-sidebar-link{
+      display:block;
+      padding:10px 12px;
+      border-radius:12px;
+      text-decoration:none;
+      color:var(--text);
+      background:var(--clr-surface-a10);
+      border:1px solid var(--clr-surface-a20);
+      font-weight:600;
+    }
+
+    .drive-sidebar-link:hover{
+      background:var(--clr-surface-a20);
+    }
+
+    .drive-sidebar-link.active{
+      background:linear-gradient(90deg,var(--accent),var(--accent-2));
+      color:#fff;
+      border-color:transparent;
+    }
+
+    .drive-toolbar-right{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-left:auto;
+    }
+
+    .drive-sort{
+      flex:0 0 auto;
+    }
+
+    body.list-view .drive-sort{
+      display:none;
+    }
+
+    .drive-sort select{
+      min-width:170px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--app-border);
+      background:var(--app-panel-muted);
+      color:var(--text);
+      font:inherit;
+    }
+
+    .drive-sort select:focus{
+      outline:none;
+      border-color:var(--accent);
+      box-shadow:0 0 0 4px rgba(230,30,76,0.12);
+    }
+
+    .drive-filters{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:8px;
+    }
+
+    .drive-filters select,
+    .drive-filters input{
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--app-border);
+      background:var(--app-panel-muted);
+      color:var(--text);
+      font:inherit;
+    }
+
+    .drive-filters input{
+      min-width:120px;
+    }
+
+    .tile-meta{
+      flex:1 1 auto;
+      min-width:0;
+      min-height:0;
+      justify-content:space-between;
+    }
+
+    .tile-sub{
+      font-size:0.75rem;
+      line-height:1.25;
+    }
+
+    .tile-list-column{
+      display:none;
+    }
+
+    .tile-thumb{
+      flex:0 0 76px;
+      width:76px;
+      min-height:76px;
+      max-height:76px;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+    }
+
+    .search-empty{
+      display:grid;
+      place-items:center;
+      min-height:180px;
+      padding:24px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed var(--clr-surface-a30);
+      border-radius:14px;
+      background:var(--card);
+    }
+
+    .search-empty[hidden]{
+      display:none;
+    }
+
+    .files-list-header{
+      --list-thumb-column:56px;
+      --list-date-column:minmax(220px, 1.2fr);
+      --list-size-column:minmax(110px, 0.6fr);
+      --list-kind-column:minmax(140px, 0.8fr);
+      display:none;
+      align-items:center;
+      gap:16px;
+      grid-template-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+      padding:0 14px 6px;
+      background:var(--app-panel-muted);
+      border-radius:10px 10px 0 0;
+    }
+
+    .files-list-header-name{
+      grid-column:2;
+      min-width:0;
+    }
+
+    .files-list-header-meta{
+      grid-column:3 / 6;
+      min-width:0;
+      display:grid;
+      grid-template-columns:var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+      gap:16px;
+      align-items:center;
+    }
+
+    .files-list-header-meta > *:nth-child(2){
+      text-align:right;
+    }
+
+    .files-list-header-button{
+      position:relative;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      width:100%;
+      min-height:48px;
+      padding:0 12px;
+      border:0;
+      background:transparent;
+      color:var(--muted);
+      font:600 0.82rem/1 inherit;
+      letter-spacing:0.01em;
+      cursor:pointer;
+      text-align:left;
+    }
+
+    .files-list-header-name .files-list-header-button{
+      padding-left:0;
+    }
+
+    .files-list-header-meta .files-list-header-button{
+      border-left:1px solid var(--app-border);
+    }
+
+    .files-list-header-meta > *:nth-child(2) .files-list-header-button{
+      justify-content:flex-end;
+      text-align:right;
+    }
+
+    .files-list-header-button:hover{
+      color:var(--text);
+    }
+
+    .files-list-header-button.active{
+      color:var(--text);
+    }
+
+    .files-list-header-label{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .files-list-header-indicator{
+      width:10px;
+      height:10px;
+      flex:0 0 10px;
+      opacity:0;
+      position:relative;
+    }
+
+    .files-list-header-button.active .files-list-header-indicator{
+      opacity:0.9;
+    }
+
+    .files-list-header-indicator::before,
+    .files-list-header-indicator::after{
+      content:"";
+      position:absolute;
+      top:4px;
+      width:7px;
+      height:1.5px;
+      background:currentColor;
+      border-radius:999px;
+      transition:transform 180ms ease;
+    }
+
+    .files-list-header-indicator::before{
+      left:0;
+      transform:rotate(-45deg);
+      transform-origin:left center;
+    }
+
+    .files-list-header-indicator::after{
+      right:0;
+      transform:rotate(45deg);
+      transform-origin:right center;
+    }
+
+    .files-list-header-button[data-direction="desc"] .files-list-header-indicator::before{
+      transform:rotate(45deg);
+    }
+
+    .files-list-header-button[data-direction="desc"] .files-list-header-indicator::after{
+      transform:rotate(-45deg);
+    }
+
+    #files-list.view-list{
+      display:flex;
+      flex-direction:column;
+      gap:0;
+    }
+
+    body.list-view .files-list-header{
+      display:grid;
+    }
+
+    #files-list.view-list .drive-tile{
+      width:100%;
+      height:40px;
+      min-height:40px;
+      display:grid;
+      grid-template-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+      align-items:center;
+      column-gap:16px;
+      padding:8px 14px;
+      border-radius:0;
+      border:0;
+      box-shadow:none;
+      background:transparent;
+    }
+
+    #files-list.view-list .drive-tile:nth-of-type(odd){
+      background:var(--app-row-alt);
+    }
+
+    #files-list.view-list .drive-tile:hover{
+      background:var(--app-row-hover);
+    }
+
+    #files-list.view-list .drive-tile.selected{
+      background:var(--app-selected-bg);
+    }
+
+    #files-list.view-list .tile-thumb{
+      grid-column:1;
+      flex:0 0 30px;
+      width:30px;
+      min-height:24px;
+      max-height:24px;
+      border-radius:8px;
+      align-items:center;
+      justify-content:center;
+      padding:0 4px;
+      font-size:0.62rem;
+      font-weight:700;
+    }
+
+    #files-list.view-list .tile-meta{
+      display:contents;
+    }
+
+    #files-list.view-list .tile-name{
+      grid-column:2;
+      min-width:0;
+    }
+
+    #files-list.view-list .tile-sub{
+      display:none;
+    }
+
+    #files-list.view-list .tile-list-column{
+      min-width:0;
+      display:flex;
+      align-items:center;
+      color:var(--muted);
+      font-size:0.94rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    #files-list.view-list .tile-list-column.modified{
+      grid-column:3;
+    }
+
+    #files-list.view-list .tile-list-column.size{
+      grid-column:4;
+      justify-content:flex-end;
+      text-align:right;
+    }
+
+    #files-list.view-list .tile-list-column.type{
+      grid-column:5;
+    }
+
+    @media (max-width: 1180px){
+      .files-list-header{
+        --list-date-column:minmax(190px, 1fr);
+        --list-size-column:minmax(100px, 0.55fr);
+      }
+
+      .files-list-header-meta{
+        grid-template-columns:var(--list-date-column) var(--list-size-column);
+      }
+
+      .files-list-header-meta > *:last-child{
+        display:none;
+      }
+
+      #files-list.view-list .tile-list-column.type{
+        display:none;
+      }
+    }
+
+    #files-list.view-list .search-empty{
+      width:100%;
+    }
+
+    @media (max-width: 900px){
+      .files-list-header{
+        display:none !important;
+      }
+
+      #files-list.view-list .drive-tile{
+        height:auto;
+        min-height:60px;
+        align-items:flex-start;
+        grid-template-columns:var(--list-thumb-column) minmax(0, 1fr);
+        column-gap:12px;
+        row-gap:4px;
+        padding-top:10px;
+        padding-bottom:10px;
+      }
+
+      #files-list.view-list .tile-name,
+      #files-list.view-list .tile-sub{
+        grid-column:2;
+      }
+
+      #files-list.view-list .tile-sub{
+        gap:4px;
+      }
+
+      #files-list.view-list .tile-list-column{
+        display:none;
+      }
+
+      #files-list.view-list .tile-sub{
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+      }
+
+      #files-list.view-list .tile-sub br{
+        display:none;
+      }
+
+      #files-list.view-list .tile-list-column.size{
+        justify-content:flex-start;
+        text-align:left;
+      }
+    }
+
+    .preview-body.preview-stage{
+      min-height:240px;
+      color:var(--text);
+    }
+
+    .preview-loading,
+    .preview-message{
+      border:1px dashed var(--app-border);
+      border-radius:10px;
+      padding:18px;
+      text-align:center;
+      color:var(--muted);
+    }
+
+    .preview-embed-frame,
+    .preview-embed-image,
+    .preview-embed-video{
+      display:block;
+      width:100%;
+      height:360px;
+      border:0;
+      border-radius:10px;
+      background:var(--clr-surface-a10);
+    }
+
+    .preview-embed-frame{
+      background:#fff;
+    }
+
+    .preview-embed-image{
+      object-fit:contain;
+    }
+
+    .preview-embed-video{
+      object-fit:contain;
+    }
+
+    .preview-text{
+      margin:0;
+      max-height:360px;
+      overflow:auto;
+      padding:14px;
+      border-radius:10px;
+      background:var(--clr-surface-a10);
+      white-space:pre-wrap;
+      word-break:break-word;
+      font:0.82rem/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .preview-note{
+      margin:0 0 10px;
+      color:var(--muted);
+      font-size:0.8rem;
+    }
+
+    .preview-sheet{
+      max-height:360px;
+      overflow:auto;
+      border-radius:10px;
+      border:1px solid var(--app-border);
+      background:var(--card);
+    }
+
+    .preview-sheet table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.8rem;
+    }
+
+    .preview-sheet td{
+      padding:8px 10px;
+      border-right:1px solid var(--app-border-subtle);
+      border-bottom:1px solid var(--app-border);
+      white-space:nowrap;
+      vertical-align:top;
+    }
+
+    .file-viewer-modal-dialog{
+      width:min(1200px, calc(100vw - 40px));
+      height:min(88dvh, 960px);
+      display:flex;
+      flex-direction:column;
+      padding:0;
+      overflow:hidden;
+    }
+
+    .file-viewer-modal-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      padding:20px 24px 16px;
+      border-bottom:1px solid var(--app-border);
+      background:var(--card);
+    }
+
+    .file-viewer-modal-copy{
+      min-width:0;
+      flex:1 1 auto;
+    }
+
+    .file-viewer-modal-title{
+      margin:0;
+      font-size:1.15rem;
+      line-height:1.2;
+      word-break:break-word;
+    }
+
+    .file-viewer-modal-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:10px;
+      color:var(--muted);
+      font-size:0.85rem;
+    }
+
+    .file-viewer-modal-chip{
+      padding:6px 10px;
+      border-radius:999px;
+      background:var(--app-panel-muted);
+      border:1px solid var(--app-border);
+    }
+
+    .file-viewer-modal-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex:0 0 auto;
+      padding-right:24px;
+    }
+
+    .file-viewer-modal-body{
+      flex:1 1 auto;
+      min-height:0;
+      padding:20px 24px 24px;
+      overflow:hidden;
+      background:var(--card);
+    }
+
+    .file-viewer-stage{
+      height:100%;
+      min-height:0;
+      color:var(--text);
+    }
+
+    .file-viewer-loading,
+    .file-viewer-message{
+      display:grid;
+      place-items:center;
+      height:100%;
+      min-height:260px;
+      padding:24px;
+      border:1px dashed var(--app-border);
+      border-radius:14px;
+      text-align:center;
+      color:var(--muted);
+    }
+
+    .file-viewer-frame,
+    .file-viewer-image,
+    .file-viewer-video{
+      display:block;
+      width:100%;
+      height:100%;
+      min-height:0;
+      border:0;
+      border-radius:14px;
+      background:var(--clr-surface-a10);
+    }
+
+    .file-viewer-frame{
+      background:#fff;
+    }
+
+    .file-viewer-image{
+      object-fit:contain;
+    }
+
+    .file-viewer-video{
+      object-fit:contain;
+    }
+
+    .file-viewer-text{
+      margin:0;
+      height:100%;
+      overflow:auto;
+      padding:18px;
+      border-radius:14px;
+      background:var(--clr-surface-a10);
+      white-space:pre-wrap;
+      word-break:break-word;
+      font:0.9rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .file-viewer-note{
+      margin:0 0 10px;
+      color:var(--muted);
+      font-size:0.84rem;
+    }
+
+    .file-viewer-sheet{
+      height:100%;
+      overflow:auto;
+      border-radius:14px;
+      border:1px solid var(--app-border);
+      background:var(--card);
+    }
+
+    .file-viewer-sheet table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.9rem;
+    }
+
+    .file-viewer-sheet td{
+      padding:10px 12px;
+      border-right:1px solid var(--app-border-subtle);
+      border-bottom:1px solid var(--app-border);
+      white-space:nowrap;
+      vertical-align:top;
     }
   </style>
 {% endblock %}
 
 {% block header_actions %}
+  {% if request.cookies.get('session_id') %}
   <form action="/logout" method="get">
     <button class="btn logout" type="submit">Logout</button>
   </form>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
   {% set user_root = request.query_params.get('username') or request.cookies.get('username') or 'My Drive' %}
-  <div class="drive-shell">
+  {% set is_shared_mode = shared_mode if shared_mode is defined else false %}
+  {% set current_search_scope = search_scope if search_scope is defined else 'own' %}
+  {% set show_search_filters_flag = show_search_filters if show_search_filters is defined else true %}
+  <div class="drive-shell" data-read-only="{{ 'true' if read_only else 'false' }}" data-search-scope="{{ current_search_scope }}" data-shared-mode="{{ 'true' if is_shared_mode else 'false' }}">
     <aside class="drive-sidebar">
+      {% if request.cookies.get('session_id') %}
+      <div class="drive-sidebar-links">
+        <a class="drive-sidebar-link{% if not is_shared_mode and not read_only %} active{% endif %}" href="/app/home">My Drive</a>
+        <a class="drive-sidebar-link{% if is_shared_mode %} active{% endif %}" href="/app/shared">Shared with me</a>
+      </div>
+      {% endif %}
       <div class="drive-section">
         <div class="drive-section-title">Folders</div>
         <ul class="folder-tree">
-          <li class="tree-node expanded active">
-            <div class="tree-item">
-              <span class="tree-caret"></span>
-              <span class="tree-icon"></span>
-              <span class="tree-label">{{ user_root }}</span>
-            </div>
-            <ul class="tree-children">
-              {% for folder in folders %}
-              <li>
-                <div class="tree-item">
-                <span class="tree-caret"></span>
-                <span class="tree-icon"></span>
-                <span class="tree-label">{{ folder.name }}</span>
-                </div>
-              </li>
-              {% endfor %}
-            </ul>
-          </li>
+          {{ render_tree_node(folder_tree) }}
         </ul>
       </div>
     </aside>
 
     <section class="drive-main">
       <div class="drive-toolbar">
-        <div class="drive-breadcrumbs">
-          <span class="crumb current">{{ user_root }}</span>
+        <div class="drive-nav">
+          <div class="drive-nav-buttons">
+            <button id="nav-back" class="icon-btn" type="button" aria-label="Go back">←</button>
+            <button id="nav-forward" class="icon-btn" type="button" aria-label="Go forward">→</button>
+          </div>
+          <div class="drive-breadcrumbs">
+            {% for crumb in breadcrumbs %}
+              {% if not loop.first %}
+                <span class="crumb-separator">›</span>
+              {% endif %}
+              {% if crumb.current %}
+                <span class="crumb current">
+                  <span class="crumb-label">{{ crumb.label }}</span>
+                  <span class="crumb-caret" aria-hidden="true"></span>
+                </span>
+              {% else %}
+                <a class="crumb-link" href="{{ crumb.url }}">
+                  <span class="crumb-label">{{ crumb.label }}</span>
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
         </div>
         <div class="drive-toolbar-right">
+          <div class="drive-sort">
+            <select id="sort-select" aria-label="Sort files">
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+              <option value="date-desc">Modified newest</option>
+              <option value="date-asc">Modified oldest</option>
+              <option value="size-desc">Size largest</option>
+              <option value="size-asc">Size smallest</option>
+              <option value="type-asc">Type A-Z</option>
+              <option value="type-desc">Type Z-A</option>
+            </select>
+          </div>
           <div class="drive-search">
-            <input id="file-search" type="search" placeholder="Search in Drive">
+            <input id="file-search" type="search" placeholder="{{ 'Search shared items' if is_shared_mode else 'Search in Drive' }}">
           </div>
           <div class="drive-view">
-            <button class="icon-btn active" type="button" aria-label="Grid view">Grid</button>
-            <button class="icon-btn list" type="button" aria-label="List view">List</button>
+            <button id="grid-view-toggle" class="icon-btn active" type="button" aria-label="Grid view">Grid</button>
+            <button id="list-view-toggle" class="icon-btn list" type="button" aria-label="List view">List</button>
           </div>
         </div>
       </div>
 
+      <div class="drive-actions drive-filters"{% if not show_search_filters_flag %} hidden{% endif %}>
+        <select id="search-kind-filter" aria-label="Search type">
+          <option value="all">All types</option>
+          <option value="folders">Folders</option>
+          <option value="files">Files</option>
+          <option value="images">Images</option>
+          <option value="videos">Videos</option>
+          <option value="docs">Docs</option>
+        </select>
+        <input id="search-date-from" type="date" aria-label="Modified from">
+        <input id="search-date-to" type="date" aria-label="Modified to">
+        <input id="search-min-size" type="number" min="0" step="1" placeholder="Min size MB" aria-label="Minimum size MB">
+        <input id="search-max-size" type="number" min="0" step="1" placeholder="Max size MB" aria-label="Maximum size MB">
+      </div>
+
       <div class="drive-actions">
-        <div class="drive-filters">
-          <button class="drive-chip active" type="button">All</button>
-          <button class="drive-chip" type="button">Folders</button>
-          <button class="drive-chip" type="button">Images</button>
-          <button class="drive-chip" type="button">Docs</button>
-          <button class="drive-chip" type="button">Recent</button>
-        </div>
         <div class="drive-cta">
+          <button id="delete-selected" class="btn secondary" type="button" disabled>Delete</button>
           <button id="new-folder" class="btn secondary" type="button">New folder</button>
           <button id="upload-btn" class="btn primary" type="button">Upload</button>
         </div>
       </div>
 
-        <div id="files-list" class="drive-grid">
+      <div class="files-list-header">
+        <div class="files-list-header-name">
+          <button class="files-list-header-button" type="button" data-sort-key="name">
+            <span class="files-list-header-label">Name</span>
+            <span class="files-list-header-indicator" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="files-list-header-meta">
+          <div>
+            <button class="files-list-header-button" type="button" data-sort-key="date">
+              <span class="files-list-header-label">Date Modified</span>
+              <span class="files-list-header-indicator" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div>
+            <button class="files-list-header-button" type="button" data-sort-key="size">
+              <span class="files-list-header-label">Size</span>
+              <span class="files-list-header-indicator" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div>
+            <button class="files-list-header-button" type="button" data-sort-key="type">
+              <span class="files-list-header-label">Kind</span>
+              <span class="files-list-header-indicator" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="files-list" class="drive-grid">
         {% for folder in folders %}
         <div
-          class="drive-tile folder{% if i == 1 %} selected{% endif %}"
+          class="drive-tile folder"
+          draggable="true"
           data-folder-public-id="{{ folder['publicID'] }}"
+          data-folder-public="{{ 'true' if folder['public'] else 'false' }}"
+          data-folder-public-expires-at="{{ folder['publicExpiresAt'] or '' }}"
           data-folder-name="{{ folder['folderName'] }}"
           data-folder-modified="{{ folder['lastModified'] }}"
         >
-          <div class="tile-thumb folder">Folder</div>
+          <div class="tile-thumb folder">DIR</div>
           <div class="tile-meta">
             <div class="tile-name">{{ folder["folderName"] }}</div>
+            <div class="tile-list-column modified">{{ folder["lastModified"] }}</div>
+            <div class="tile-list-column size">--</div>
+            <div class="tile-list-column type">Folder</div>
             <div class="tile-sub">Last modified<br>{{ folder["lastModified"] }}</div>
           </div>
         </div>
         {% endfor %}
         {% for file in files %}
-        <div class="drive-tile file"> <!--selected-->
-          <div class="tile-thumb image">PNG</div>
+        <div
+          class="drive-tile file"
+          draggable="true"
+          data-file-public-id="{{ file['publicID'] }}"
+          data-file-public="{{ 'true' if file['public'] else 'false' }}"
+          data-file-public-expires-at="{{ file['publicExpiresAt'] or '' }}"
+          data-file-public-allow-download="{{ 'true' if file['publicAllowDownload'] else 'false' }}"
+          data-file-name="{{ file['fileName'] }}"
+          data-file-size-bytes="{{ file['sizeBytes'] }}"
+          data-file-modified="{{ file['lastModified'] }}"
+        > <!--selected-->
+          <div class="tile-thumb image">FILE</div>
           <div class="tile-meta">
             <div class="tile-name">{{ file["fileName"] }}</div>
-            <div class="tile-sub">{{ file["sizeBytes"] }} MB<br>Last modified<br>{{ file["lastModified"] }}</div>
+            <div class="tile-list-column modified">{{ file["lastModified"] }}</div>
+            <div class="tile-list-column size">{{ file["sizeBytes"] }} B</div>
+            <div class="tile-list-column type">File</div>
+            <div class="tile-sub">{{ file["sizeBytes"] }} B<br>Last modified<br>{{ file["lastModified"] }}</div>
           </div>
         </div>
         {% endfor %}
+        <div id="files-selection-box" class="selection-box" hidden></div>
+        <div id="search-empty" class="search-empty" hidden>No files or folders found.</div>
       </div>
     </section>
 
     <aside class="drive-preview">
       <div class="preview-card">
         <div class="preview-title">Preview</div>
-        <div class="preview-body">
+        <div id="preview-stage" class="preview-body preview-stage">
           <div class="preview-empty">Select a file to preview.</div>
         </div>
       </div>
@@ -239,6 +1311,10 @@
           <div class="preview-row">
             <span class="preview-label">Modified</span>
             <span class="preview-value">Today, 14:10</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Access</span>
+            <span class="preview-value">Private</span>
           </div>
         </div>
       </div>
@@ -278,49 +1354,326 @@
         <button id="close-upload-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
       </div>
 
-      <form id="upload-form" class="modal-form">
+      <form id="upload-form" class="modal-form" data-upload-url="/app/api/upload">
         <div class="modal-field">
-          <input id="upload-file-input" name="upload_file" type="file" required>
+          <input id="upload-file-input" name="upload_file" type="file" multiple required>
+        </div>
+        <div class="modal-field">
+          <input id="upload-folder-input" name="upload_folder" type="file" webkitdirectory directory multiple>
         </div>
 
         <p id="upload-error" class="modal-error" hidden></p>
+        <p id="upload-status" class="modal-note" hidden></p>
 
         <div class="modal-actions">
           <button class="btn secondary" type="button" data-close-upload-modal>Cancel</button>
-          <button class="btn primary" type="submit">Upload</button>
+          <button id="upload-submit" class="btn primary" type="submit">Upload</button>
         </div>
       </form>
     </div>
+  </div>
+
+  <div id="warning-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog warning-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="warning-modal-title">
+      <div class="modal-header">
+        <div class="warning-badge">!</div>
+        <div class="warning-modal-copy">
+          <h2 id="warning-modal-title" class="modal-title">Delete items</h2>
+          <p id="warning-modal-message" class="warning-modal-text">This action cannot be undone.</p>
+        </div>
+        <button id="close-warning-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="warning-cancel" class="btn secondary" type="button">Cancel</button>
+        <button id="warning-confirm" class="btn primary" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rename-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="rename-title" class="modal-title">Rename item</h2>
+        </div>
+        <button id="close-rename-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="rename-form" class="modal-form">
+        <div class="modal-field">
+          <input id="rename-input" name="rename_input" type="text" placeholder="New name" required>
+        </div>
+
+        <p id="rename-error" class="modal-error" hidden></p>
+
+        <div class="modal-actions">
+          <button id="rename-cancel" class="btn secondary" type="button">Cancel</button>
+          <button id="rename-submit" class="btn primary" type="submit">Rename</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="move-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="move-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="move-title" class="modal-title">Move to</h2>
+        </div>
+        <button id="close-move-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="move-form" class="modal-form">
+        <div class="modal-field">
+          <select id="move-target-select" name="move_target" required>
+            <option value="">Select destination</option>
+          </select>
+        </div>
+
+        <p id="move-error" class="modal-error" hidden></p>
+
+        <div class="modal-actions">
+          <button id="move-cancel" class="btn secondary" type="button">Cancel</button>
+          <button id="move-submit" class="btn primary" type="submit">Move</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="share-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="share-title">
+      <div class="modal-header">
+        <div>
+          <h2 id="share-title" class="modal-title">Share settings</h2>
+          <p class="modal-subtitle">Configure public access, password and expiration.</p>
+        </div>
+        <button id="close-share-modal" class="modal-close" type="button" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="share-form" class="modal-form">
+        <div class="modal-field">
+          <label>
+            <input id="share-public-checkbox" name="share_public" type="checkbox">
+            Public access
+          </label>
+        </div>
+        <div class="modal-field">
+          <label for="share-expires-at-input">Expires at</label>
+          <input id="share-expires-at-input" name="share_expires_at" type="datetime-local">
+        </div>
+        <div class="modal-field">
+          <label for="share-password-input">New password</label>
+          <input id="share-password-input" name="share_password" type="password" placeholder="Leave empty to keep current password">
+        </div>
+        <div class="modal-field">
+          <label>
+            <input id="share-clear-password-checkbox" name="share_clear_password" type="checkbox">
+            Clear password
+          </label>
+        </div>
+        <div class="modal-field">
+          <label for="share-users-input">Share with users</label>
+          <input id="share-users-input" name="share_users" type="text" placeholder="username1, username2">
+          <p class="modal-note">Use comma-separated usernames for direct private sharing.</p>
+        </div>
+        <div id="share-file-download-field" class="modal-field">
+          <label>
+            <input id="share-allow-download-checkbox" name="share_allow_download" type="checkbox" checked>
+            Allow public download
+          </label>
+        </div>
+
+        <p id="share-error" class="modal-error" hidden></p>
+
+        <div class="modal-actions">
+          <button id="share-cancel" class="btn secondary" type="button">Cancel</button>
+          <button id="share-submit" class="btn primary" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="file-viewer-modal" class="modal-overlay" hidden>
+    <div class="modal-dialog file-viewer-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="file-viewer-title">
+      <div class="file-viewer-modal-header">
+        <div class="file-viewer-modal-copy">
+          <h2 id="file-viewer-title" class="file-viewer-modal-title">File viewer</h2>
+          <div id="file-viewer-meta" class="file-viewer-modal-meta"></div>
+        </div>
+        <div class="file-viewer-modal-actions">
+          <a id="file-viewer-raw-link" class="btn secondary" href="#" target="_blank" rel="noopener">Open Raw</a>
+          <a id="file-viewer-download-link" class="btn primary" href="#">Download</a>
+          <button id="close-file-viewer-modal" class="modal-close" type="button" aria-label="Close viewer">&times;</button>
+        </div>
+      </div>
+      <div class="file-viewer-modal-body">
+        <div id="file-viewer-stage" class="file-viewer-stage"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="upload-toast" class="upload-toast" data-state="idle" hidden>
+    <div id="upload-progress-ring" class="upload-progress-ring">
+      <span id="upload-progress-percent">0%</span>
+    </div>
+    <div class="upload-toast-copy">
+      <div id="upload-progress-title" class="upload-toast-title">Uploading files</div>
+      <div id="upload-progress-meta" class="upload-toast-meta">Preparing upload...</div>
+    </div>
+  </div>
+
+  <div id="item-context-menu" class="item-context-menu" hidden>
+    <button id="context-download-action" class="item-context-menu-button" type="button">Download</button>
+    <button id="context-visibility-action" class="item-context-menu-button" type="button">Make public</button>
+    <button id="context-copy-public-link-action" class="item-context-menu-button" type="button">Copy public link</button>
+    <button id="context-share-settings-action" class="item-context-menu-button" type="button">Share settings</button>
+    <button id="context-rename-action" class="item-context-menu-button" type="button">Rename</button>
+    <button id="context-move-action" class="item-context-menu-button" type="button">Move to</button>
+    <button id="context-delete-action" class="item-context-menu-button danger" type="button">Remove</button>
   </div>
 {% endblock %}
 
 {% block scripts %}
   <script src="{{ url_for('static', path='js/tree.js') }}"></script>
   <script>
+    window.addEventListener('pageshow', function(event){
+      const navigationEntry = window.performance && typeof window.performance.getEntriesByType === 'function'
+        ? window.performance.getEntriesByType('navigation')[0]
+        : null;
+      const isHistoryNavigation = event.persisted || (navigationEntry && navigationEntry.type === 'back_forward');
+
+      if (isHistoryNavigation) {
+        window.location.reload();
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', function(){
+      const driveShell = document.querySelector('.drive-shell');
       const newFolderButton = document.getElementById('new-folder');
+      const deleteSelectedButton = document.getElementById('delete-selected');
       const uploadButton = document.getElementById('upload-btn');
+      const fileSearchInput = document.getElementById('file-search');
+      const searchKindFilter = document.getElementById('search-kind-filter');
+      const searchDateFromInput = document.getElementById('search-date-from');
+      const searchDateToInput = document.getElementById('search-date-to');
+      const searchMinSizeInput = document.getElementById('search-min-size');
+      const searchMaxSizeInput = document.getElementById('search-max-size');
+      const sortSelect = document.getElementById('sort-select');
+      const listSortButtons = Array.from(document.querySelectorAll('.files-list-header-button[data-sort-key]'));
+      const gridViewToggle = document.getElementById('grid-view-toggle');
+      const listViewToggle = document.getElementById('list-view-toggle');
+      const navBackButton = document.getElementById('nav-back');
+      const navForwardButton = document.getElementById('nav-forward');
       const modal = document.getElementById('create-folder-modal');
       const uploadModal = document.getElementById('upload-modal');
+      const warningModal = document.getElementById('warning-modal');
+      const renameModal = document.getElementById('rename-modal');
+      const moveModal = document.getElementById('move-modal');
+      const shareModal = document.getElementById('share-modal');
+      const fileViewerModal = document.getElementById('file-viewer-modal');
       const closeButton = document.getElementById('close-folder-modal');
       const closeUploadButton = document.getElementById('close-upload-modal');
+      const closeWarningButton = document.getElementById('close-warning-modal');
+      const closeRenameButton = document.getElementById('close-rename-modal');
+      const closeMoveButton = document.getElementById('close-move-modal');
+      const closeShareButton = document.getElementById('close-share-modal');
+      const closeFileViewerButton = document.getElementById('close-file-viewer-modal');
       const closeModalButton = modal ? modal.querySelector('[data-close-modal]') : null;
       const closeUploadModalButton = uploadModal ? uploadModal.querySelector('[data-close-upload-modal]') : null;
       const form = document.getElementById('create-folder-form');
       const uploadForm = document.getElementById('upload-form');
+      const renameForm = document.getElementById('rename-form');
+      const moveForm = document.getElementById('move-form');
+      const shareForm = document.getElementById('share-form');
       const folderNameInput = document.getElementById('folder-name-input');
       const uploadFileInput = document.getElementById('upload-file-input');
+      const uploadFolderInput = document.getElementById('upload-folder-input');
+      const renameInput = document.getElementById('rename-input');
+      const moveTargetSelect = document.getElementById('move-target-select');
+      const sharePublicCheckbox = document.getElementById('share-public-checkbox');
+      const shareExpiresAtInput = document.getElementById('share-expires-at-input');
+      const sharePasswordInput = document.getElementById('share-password-input');
+      const shareClearPasswordCheckbox = document.getElementById('share-clear-password-checkbox');
+      const shareUsersInput = document.getElementById('share-users-input');
+      const shareAllowDownloadCheckbox = document.getElementById('share-allow-download-checkbox');
+      const shareFileDownloadField = document.getElementById('share-file-download-field');
       const errorBox = document.getElementById('new-folder-error');
       const uploadErrorBox = document.getElementById('upload-error');
+      const renameErrorBox = document.getElementById('rename-error');
+      const moveErrorBox = document.getElementById('move-error');
+      const shareErrorBox = document.getElementById('share-error');
+      const uploadStatusBox = document.getElementById('upload-status');
+      const uploadSubmitButton = document.getElementById('upload-submit');
+      const renameSubmitButton = document.getElementById('rename-submit');
+      const moveSubmitButton = document.getElementById('move-submit');
+      const shareSubmitButton = document.getElementById('share-submit');
+      const uploadToast = document.getElementById('upload-toast');
+      const uploadProgressRing = document.getElementById('upload-progress-ring');
+      const uploadProgressPercent = document.getElementById('upload-progress-percent');
+      const uploadProgressTitle = document.getElementById('upload-progress-title');
+      const uploadProgressMeta = document.getElementById('upload-progress-meta');
+      const warningModalTitle = document.getElementById('warning-modal-title');
+      const warningModalMessage = document.getElementById('warning-modal-message');
+      const warningCancelButton = document.getElementById('warning-cancel');
+      const warningConfirmButton = document.getElementById('warning-confirm');
+      const itemContextMenu = document.getElementById('item-context-menu');
+      const contextDownloadAction = document.getElementById('context-download-action');
+      const contextVisibilityAction = document.getElementById('context-visibility-action');
+      const contextCopyPublicLinkAction = document.getElementById('context-copy-public-link-action');
+      const contextShareSettingsAction = document.getElementById('context-share-settings-action');
+      const contextRenameAction = document.getElementById('context-rename-action');
+      const contextMoveAction = document.getElementById('context-move-action');
+      const contextDeleteAction = document.getElementById('context-delete-action');
       const filesList = document.getElementById('files-list');
+      const filesSelectionBox = document.getElementById('files-selection-box');
+      const searchEmptyState = document.getElementById('search-empty');
+      const previewStage = document.getElementById('preview-stage');
+      const fileViewerStage = document.getElementById('file-viewer-stage');
+      const fileViewerTitle = document.getElementById('file-viewer-title');
+      const fileViewerMeta = document.getElementById('file-viewer-meta');
+      const fileViewerRawLink = document.getElementById('file-viewer-raw-link');
+      const fileViewerDownloadLink = document.getElementById('file-viewer-download-link');
       const previewEmpty = document.querySelector('.preview-empty');
       const previewName = document.querySelector('.preview-row:nth-child(1) .preview-value');
       const previewType = document.querySelector('.preview-row:nth-child(2) .preview-value');
       const previewSize = document.querySelector('.preview-row:nth-child(3) .preview-value');
       const previewModified = document.querySelector('.preview-row:nth-child(4) .preview-value');
+      const previewAccess = document.querySelector('.preview-row:nth-child(5) .preview-value');
+      const driveSearchScope = driveShell.dataset.searchScope || 'own';
+      const isSharedMode = driveShell.dataset.sharedMode === 'true';
+      const isReadOnly = driveShell ? driveShell.dataset.readOnly === 'true' : false;
+      const uploadChunkSize = 5 * 1024 * 1024;
       let folderClickTimer = null;
+      let isUploading = false;
+      let uploadToastTimer = null;
+      let selectionAnchorIndex = null;
+      let dragSelection = null;
+      let suppressNextClick = false;
+      let warningModalResolver = null;
+      let moveTargetsCache = null;
+      let shareItemTarget = null;
+      let draggedTiles = [];
+      let currentDropTarget = null;
+      let previewRequestId = 0;
+      let searchRequestId = 0;
+      let searchDebounceTimer = null;
+      let searchState = {
+        active: false,
+        query: ''
+      };
+      let baseFolderItemsState = [];
+      const fileViewStorageKey = 'nosocial-files-view';
+      const fileSortStorageKey = 'nosocial-files-sort';
+      const supportedSortModes = ['name-asc', 'name-desc', 'date-desc', 'date-asc', 'size-desc', 'size-asc', 'type-asc', 'type-desc'];
+      const listSortModeMap = {
+        name: ['name-asc', 'name-desc'],
+        date: ['date-desc', 'date-asc'],
+        size: ['size-desc', 'size-asc'],
+        type: ['type-asc', 'type-desc']
+      };
 
-      if(!newFolderButton || !uploadButton || !modal || !uploadModal || !form || !uploadForm || !folderNameInput || !uploadFileInput){
+      if(!driveShell || !newFolderButton || !deleteSelectedButton || !uploadButton || !fileSearchInput || !searchKindFilter || !searchDateFromInput || !searchDateToInput || !searchMinSizeInput || !searchMaxSizeInput || !sortSelect || !gridViewToggle || !listViewToggle || !navBackButton || !navForwardButton || !modal || !uploadModal || !warningModal || !renameModal || !moveModal || !shareModal || !fileViewerModal || !form || !uploadForm || !renameForm || !moveForm || !shareForm || !folderNameInput || !uploadFileInput || !uploadFolderInput || !renameInput || !moveTargetSelect || !sharePublicCheckbox || !shareExpiresAtInput || !sharePasswordInput || !shareClearPasswordCheckbox || !shareUsersInput || !shareAllowDownloadCheckbox || !shareFileDownloadField || !itemContextMenu || !contextDownloadAction || !contextVisibilityAction || !contextCopyPublicLinkAction || !contextShareSettingsAction || !contextRenameAction || !contextMoveAction || !contextDeleteAction || !closeWarningButton || !closeRenameButton || !closeMoveButton || !closeShareButton || !closeFileViewerButton || !warningModalTitle || !warningModalMessage || !warningCancelButton || !warningConfirmButton || !renameSubmitButton || !moveSubmitButton || !shareSubmitButton || !shareErrorBox || !searchEmptyState || !previewStage || !fileViewerStage || !fileViewerTitle || !fileViewerMeta || !fileViewerRawLink || !fileViewerDownloadLink || !previewAccess){
         return;
       }
 
@@ -331,6 +1684,285 @@
 
         targetErrorBox.textContent = '';
         targetErrorBox.hidden = true;
+      }
+
+      function renderUploadStatus(message) {
+        if (!uploadStatusBox) {
+          return;
+        }
+
+        uploadStatusBox.textContent = message;
+        uploadStatusBox.hidden = !message;
+      }
+
+      function clearUploadStatus() {
+        renderUploadStatus('');
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) {
+          return '0 B';
+        }
+
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex += 1;
+        }
+
+        return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
+      }
+
+      function clearUploadToastTimer() {
+        if (!uploadToastTimer) {
+          return;
+        }
+
+        window.clearTimeout(uploadToastTimer);
+        uploadToastTimer = null;
+      }
+
+      function hideUploadToastLater(delay) {
+        clearUploadToastTimer();
+        uploadToastTimer = window.setTimeout(function(){
+          if (uploadToast) {
+            uploadToast.hidden = true;
+          }
+        }, delay);
+      }
+
+      function updateUploadToast(progress, state, title, meta) {
+        if (!uploadToast || !uploadProgressRing || !uploadProgressPercent || !uploadProgressTitle || !uploadProgressMeta) {
+          return;
+        }
+
+        clearUploadToastTimer();
+
+        const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
+        const ringColorMap = {
+          idle: 'var(--accent)',
+          uploading: 'var(--accent)',
+          success: '#22c55e',
+          error: '#ef4444'
+        };
+
+        uploadToast.hidden = false;
+        uploadToast.dataset.state = state;
+        uploadProgressRing.style.setProperty('--progress', String(safeProgress));
+        uploadProgressRing.style.setProperty('--ring-color', ringColorMap[state] || 'var(--accent)');
+        uploadProgressPercent.textContent = `${safeProgress}%`;
+        uploadProgressTitle.textContent = title;
+        uploadProgressMeta.textContent = meta;
+      }
+
+      function setUploadState(uploading) {
+        isUploading = uploading;
+
+        if (uploadSubmitButton) {
+          uploadSubmitButton.disabled = uploading;
+          uploadSubmitButton.textContent = uploading ? 'Uploading...' : 'Upload';
+        }
+
+        if (uploadFileInput) {
+          uploadFileInput.disabled = uploading;
+        }
+
+        if (uploadFolderInput) {
+          uploadFolderInput.disabled = uploading;
+        }
+
+        if (uploadButton) {
+          uploadButton.disabled = uploading;
+        }
+
+        if (closeUploadButton) {
+          closeUploadButton.disabled = uploading;
+        }
+
+        if (closeUploadModalButton) {
+          closeUploadModalButton.disabled = uploading;
+        }
+      }
+
+      function createUploadId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+          return window.crypto.randomUUID();
+        }
+
+        return `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function getUploadContext() {
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const folderIndex = pathParts.indexOf('folders');
+        const folderPublicId = folderIndex >= 0 ? pathParts[folderIndex + 1] || '' : '';
+
+        return {
+          folderPublicId,
+          currentUrl: window.location.href
+        };
+      }
+
+      function getSelectedUploadEntries() {
+        const fileEntries = uploadFileInput && uploadFileInput.files
+          ? Array.from(uploadFileInput.files)
+          : [];
+        const folderEntries = uploadFolderInput && uploadFolderInput.files
+          ? Array.from(uploadFolderInput.files)
+          : [];
+
+        return [...fileEntries, ...folderEntries];
+      }
+
+      async function parseUploadResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+          return response.json();
+        }
+
+        const text = await response.text();
+        return text ? { detail: text } : {};
+      }
+
+      async function uploadFileInChunks(file, options, progressState) {
+        const uploadUrl = uploadForm.dataset.uploadUrl || '/app/api/upload';
+        const totalChunks = Math.max(1, Math.ceil(file.size / uploadChunkSize));
+        const uploadId = createUploadId();
+        const relativePath = file.webkitRelativePath || '';
+        let completedFile = null;
+
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+          const start = chunkIndex * uploadChunkSize;
+          const end = Math.min(start + uploadChunkSize, file.size);
+          const chunk = file.slice(start, end);
+          const formData = new FormData();
+
+          formData.append('chunk', chunk, file.name);
+          formData.append('uploadId', uploadId);
+          formData.append('fileName', file.name);
+          formData.append('mimeType', file.type || 'application/octet-stream');
+          formData.append('fileSize', String(file.size));
+          formData.append('chunkIndex', String(chunkIndex));
+          formData.append('totalChunks', String(totalChunks));
+          formData.append('chunkSize', String(chunk.size));
+          formData.append('isLastChunk', String(chunkIndex === totalChunks - 1));
+          formData.append('currentUrl', options.currentUrl);
+          formData.append('relativePath', relativePath);
+
+          if (options.folderPublicId) {
+            formData.append('folderPublicId', options.folderPublicId);
+          }
+
+          renderUploadStatus(`Uploading ${file.name}: chunk ${chunkIndex + 1} of ${totalChunks}`);
+          updateUploadToast(
+            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 0,
+            'uploading',
+            `Uploading ${file.name}`,
+            `Chunk ${chunkIndex + 1}/${totalChunks} • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
+          );
+
+          const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+          });
+
+          const payload = await parseUploadResponse(response);
+
+          if (!response.ok) {
+            throw new Error(payload.detail || payload.message || `Failed to upload ${file.name}`);
+          }
+
+          if (payload.file) {
+            completedFile = payload.file;
+          }
+
+          progressState.completedBytes += chunk.size;
+          updateUploadToast(
+            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 100,
+            'uploading',
+            `Uploading ${file.name}`,
+            `${progressState.fileIndex + 1}/${progressState.totalFiles} files • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
+          );
+        }
+
+        return completedFile;
+      }
+
+      async function uploadFiles(files) {
+        const uploadContext = getUploadContext();
+        const totalBytes = files.reduce(function(sum, file){
+          return sum + file.size;
+        }, 0);
+        const progressState = {
+          totalBytes,
+          completedBytes: 0,
+          totalFiles: files.length,
+          fileIndex: 0
+        };
+        const completedFiles = [];
+
+        updateUploadToast(0, 'uploading', 'Uploading files', `${files.length} file(s) • ${formatBytes(totalBytes)}`);
+
+        for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+          const file = files[fileIndex];
+          progressState.fileIndex = fileIndex;
+          renderUploadStatus(`Preparing ${file.name} (${fileIndex + 1}/${files.length})`);
+          updateUploadToast(
+            progressState.totalBytes > 0 ? (progressState.completedBytes / progressState.totalBytes) * 100 : 0,
+            'uploading',
+            `Uploading ${file.name}`,
+            `${fileIndex + 1}/${files.length} files • ${formatBytes(progressState.completedBytes)} of ${formatBytes(progressState.totalBytes)}`
+          );
+          const uploadedFile = await uploadFileInChunks(file, uploadContext, progressState);
+          if (uploadedFile) {
+            completedFiles.push(uploadedFile);
+          }
+        }
+
+        return completedFiles;
+      }
+
+      async function processUploadEntries(files) {
+        if (!files || files.length === 0) {
+          throw new Error('File or folder is required');
+        }
+
+        const hasDirectoryUpload = files.some(function(file){
+          return Boolean(file.webkitRelativePath);
+        });
+
+        clearErrorBox(uploadErrorBox);
+        clearUploadStatus();
+        setUploadState(true);
+
+        try {
+          const uploadedFiles = await uploadFiles(files);
+          if (hasDirectoryUpload) {
+            updateUploadToast(100, 'success', 'Folder upload completed', `${files.length} file(s) uploaded`);
+            window.location.reload();
+            return;
+          }
+
+          uploadedFiles.forEach(function(file){
+            renderFile(file);
+          });
+          updateUploadToast(100, 'success', 'Upload completed', `${files.length} file(s) uploaded`);
+          hideUploadToastLater(3000);
+        } catch (error) {
+          updateUploadToast(
+            uploadProgressRing ? Number(uploadProgressRing.style.getPropertyValue('--progress')) || 0 : 0,
+            'error',
+            'Upload failed',
+            error.message || 'Failed to upload file'
+          );
+          throw error;
+        } finally {
+          setUploadState(false);
+        }
       }
 
       function openModal(){
@@ -346,21 +1978,387 @@
       }
 
       function openUploadModal() {
+        if (isUploading) {
+          return;
+        }
+
         clearErrorBox(uploadErrorBox);
+        clearUploadStatus();
+        clearUploadToastTimer();
+
+        if (uploadToast) {
+          uploadToast.hidden = true;
+        }
+
         uploadModal.hidden = false;
         uploadFileInput.focus();
       }
 
-      function closeUploadModal() {
+      function closeUploadModal(forceClose) {
+        if (isUploading && !forceClose) {
+          return;
+        }
+
         clearErrorBox(uploadErrorBox);
+        clearUploadStatus();
         uploadModal.hidden = true;
         uploadForm.reset();
       }
 
+      function openRenameModal() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile) {
+          return;
+        }
+
+        clearErrorBox(renameErrorBox);
+        renameModal.hidden = false;
+        renameInput.value = selectedTile.classList.contains('folder')
+          ? (selectedTile.dataset.folderName || '')
+          : (selectedTile.dataset.fileName || '');
+        renameInput.focus();
+        renameInput.select();
+      }
+
+      function closeRenameModal() {
+        clearErrorBox(renameErrorBox);
+        renameModal.hidden = true;
+        renameForm.reset();
+      }
+
+      function setMoveModalState(loading) {
+        moveTargetSelect.disabled = loading;
+        moveSubmitButton.disabled = loading;
+        moveSubmitButton.textContent = loading ? 'Loading...' : 'Move';
+      }
+
+      function renderMoveTargets(targets) {
+        moveTargetSelect.innerHTML = '<option value=\"\">Select destination</option>';
+
+        targets.forEach(function(folder){
+          const option = document.createElement('option');
+          option.value = folder.publicID || '';
+          option.textContent = folder.path;
+          moveTargetSelect.appendChild(option);
+        });
+      }
+
+      async function ensureMoveTargetsLoaded() {
+        if (moveTargetsCache) {
+          renderMoveTargets(moveTargetsCache.folders || []);
+          return moveTargetsCache;
+        }
+
+        setMoveModalState(true);
+
+        try {
+          const response = await fetch('/app/api/move-targets');
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || 'Failed to load folders');
+          }
+
+          moveTargetsCache = data;
+          renderMoveTargets(data.folders || []);
+          return data;
+        } finally {
+          setMoveModalState(false);
+        }
+      }
+
+      async function openMoveModal() {
+        clearErrorBox(moveErrorBox);
+        moveModal.hidden = false;
+
+        try {
+          const moveTargets = await ensureMoveTargetsLoaded();
+          moveTargetSelect.value = moveTargets.rootPublicID || '';
+          moveTargetSelect.focus();
+        } catch (error) {
+          renderMoveError(error.message || 'Failed to load folders');
+        }
+      }
+
+      function closeMoveModal() {
+        clearErrorBox(moveErrorBox);
+        moveModal.hidden = true;
+        moveForm.reset();
+      }
+
+      function getDatetimeLocalValue(value) {
+        const normalizedValue = formatPythonDatetime(value || '').replace(' ', 'T');
+        if (!normalizedValue || normalizedValue === 'T') {
+          return '';
+        }
+        return normalizedValue.slice(0, 16);
+      }
+
+      function parseShareUsersValue(value) {
+        return String(value || '')
+          .split(',')
+          .map(function(username){
+            return username.trim();
+          })
+          .filter(Boolean);
+      }
+
+      async function fetchFileShareSettings(filePublicId) {
+        const response = await fetch(`/app/api/files/${filePublicId}/share-settings`);
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to load file share settings');
+        }
+        return data;
+      }
+
+      async function fetchFolderShareSettings(folderPublicId) {
+        const response = await fetch(`/app/api/folders/${folderPublicId}/share-settings`);
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to load folder share settings');
+        }
+        return data;
+      }
+
+      async function hydrateShareModal(tile) {
+        if (!tile) {
+          return;
+        }
+
+        try {
+          const data = tile.classList.contains('folder')
+            ? await fetchFolderShareSettings(tile.dataset.folderPublicId || '')
+            : await fetchFileShareSettings(tile.dataset.filePublicId || '');
+
+          if (shareItemTarget !== tile) {
+            return;
+          }
+
+          shareUsersInput.value = Array.isArray(data.sharedUsers) ? data.sharedUsers.join(', ') : '';
+        } catch (error) {
+          if (shareItemTarget !== tile) {
+            return;
+          }
+
+          shareErrorBox.textContent = error.message || 'Failed to load share settings';
+          shareErrorBox.hidden = false;
+        }
+      }
+
+      function openShareModal() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile) {
+          return;
+        }
+
+        shareItemTarget = selectedTile;
+        clearErrorBox(shareErrorBox);
+        shareModal.hidden = false;
+        sharePublicCheckbox.checked = isTilePublic(selectedTile);
+        shareExpiresAtInput.value = getDatetimeLocalValue(getTilePublicExpiresAt(selectedTile));
+        sharePasswordInput.value = '';
+        shareClearPasswordCheckbox.checked = false;
+        shareUsersInput.value = '';
+        if (selectedTile.classList.contains('file')) {
+          shareFileDownloadField.hidden = false;
+          shareAllowDownloadCheckbox.checked = fileAllowsPublicDownload(selectedTile);
+        } else {
+          shareFileDownloadField.hidden = true;
+          shareAllowDownloadCheckbox.checked = true;
+        }
+        sharePublicCheckbox.focus();
+        hydrateShareModal(selectedTile);
+      }
+
+      function closeShareModal() {
+        shareItemTarget = null;
+        clearErrorBox(shareErrorBox);
+        shareModal.hidden = true;
+        shareForm.reset();
+        shareFileDownloadField.hidden = false;
+        shareUsersInput.value = '';
+      }
+
+      function resolveWarningModal(confirmed) {
+        if (!warningModalResolver) {
+          warningModal.hidden = true;
+          return;
+        }
+
+        const resolver = warningModalResolver;
+        warningModalResolver = null;
+        warningModal.hidden = true;
+        resolver(confirmed);
+      }
+
+      function closeWarningModal() {
+        resolveWarningModal(false);
+      }
+
+      function openWarningModal(options) {
+        warningModalTitle.textContent = options.title || 'Warning';
+        warningModalMessage.textContent = options.message || '';
+        warningConfirmButton.textContent = options.confirmLabel || 'Confirm';
+        warningModal.hidden = false;
+        warningConfirmButton.focus();
+      }
+
+      function requestWarningConfirmation(options) {
+        if (warningModalResolver) {
+          warningModalResolver(false);
+          warningModalResolver = null;
+        }
+
+        openWarningModal(options);
+
+        return new Promise(function(resolve){
+          warningModalResolver = resolve;
+        });
+      }
+
+      function closeItemContextMenu() {
+        itemContextMenu.hidden = true;
+      }
+
+      function openItemContextMenu(clientX, clientY) {
+        const selectedCount = getSelectedTiles().length;
+        const selectedTile = getSingleSelectedTile();
+        const selectedFileTile = getSingleSelectedFileTile();
+        contextDownloadAction.hidden = !selectedFileTile;
+        contextVisibilityAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile;
+        contextCopyPublicLinkAction.hidden = selectedCount !== 1 || !selectedTile || !isTilePublic(selectedTile);
+        contextShareSettingsAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile;
+        contextVisibilityAction.textContent = selectedTile && isTilePublic(selectedTile) ? 'Make private' : 'Make public';
+        contextRenameAction.hidden = isReadOnly || selectedCount !== 1;
+        contextMoveAction.hidden = isReadOnly;
+        contextDeleteAction.hidden = isReadOnly;
+        contextMoveAction.textContent = selectedCount > 1 ? `Move ${selectedCount} items` : 'Move to';
+        contextDeleteAction.textContent = selectedCount > 1 ? `Remove ${selectedCount} items` : 'Remove';
+
+        itemContextMenu.hidden = false;
+
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const menuRect = itemContextMenu.getBoundingClientRect();
+        const left = Math.min(clientX, viewportWidth - menuRect.width - 12);
+        const top = Math.min(clientY, viewportHeight - menuRect.height - 12);
+
+        itemContextMenu.style.left = `${Math.max(12, left)}px`;
+        itemContextMenu.style.top = `${Math.max(12, top)}px`;
+      }
+
       newFolderButton.addEventListener('click', openModal);
+      navBackButton.addEventListener('click', function(){
+        window.history.back();
+      });
+      navForwardButton.addEventListener('click', function(){
+        window.history.forward();
+      });
+      sortSelect.addEventListener('change', function(){
+        setSortMode(sortSelect.value);
+        applySearchFilter(fileSearchInput.value);
+      });
+      listSortButtons.forEach(function(button){
+        button.addEventListener('click', function(){
+          const sortKey = button.dataset.sortKey || 'name';
+          const sortModes = listSortModeMap[sortKey] || listSortModeMap.name;
+          const currentMode = sortSelect.value || 'name-asc';
+          const nextMode = currentMode === sortModes[0] ? sortModes[1] : sortModes[0];
+          setSortMode(nextMode);
+          applySearchFilter(fileSearchInput.value);
+        });
+      });
+      gridViewToggle.addEventListener('click', function(){
+        setFileView('grid');
+      });
+      listViewToggle.addEventListener('click', function(){
+        setFileView('list');
+      });
+      deleteSelectedButton.addEventListener('click', async function(){
+        const selectedCount = getSelectedTiles().length;
+        if (selectedCount === 0) {
+          return;
+        }
+
+        const confirmed = await requestWarningConfirmation({
+          title: selectedCount > 1 ? `Delete ${selectedCount} items` : 'Delete item',
+          message: selectedCount > 1
+            ? 'Selected files and folders will be permanently deleted. This action cannot be undone.'
+            : 'The selected file or folder will be permanently deleted. This action cannot be undone.',
+          confirmLabel: 'Delete'
+        });
+
+        if (!confirmed) {
+          return;
+        }
+
+        try {
+          const result = await deleteSelectedItems();
+          removeDeletedTiles(result);
+          closeItemContextMenu();
+        } catch (error) {
+          window.alert(error.message || 'Failed to delete selected items');
+        }
+      });
+      contextDeleteAction.addEventListener('click', function(){
+        closeItemContextMenu();
+        deleteSelectedButton.click();
+      });
+      contextDownloadAction.addEventListener('click', function(){
+        closeItemContextMenu();
+        downloadSelectedFile();
+      });
+      contextVisibilityAction.addEventListener('click', async function(){
+        closeItemContextMenu();
+
+        try {
+          const result = await toggleSelectedItemVisibility();
+          if (result.file && result.file.public && result.publicUrl) {
+            await copyTextToClipboard(getPublicFileUrl(result.file.publicID));
+          }
+          if (result.folder && result.folder.public && result.publicUrl) {
+            await copyTextToClipboard(getPublicFolderUrl(result.folder.publicID));
+          }
+        } catch (error) {
+          window.alert(error.message || 'Failed to update item access');
+        }
+      });
+      contextCopyPublicLinkAction.addEventListener('click', async function(){
+        closeItemContextMenu();
+
+        try {
+          await copySelectedPublicItemLink();
+        } catch (error) {
+          window.alert(error.message || 'Failed to copy public link');
+        }
+      });
+      contextShareSettingsAction.addEventListener('click', function(){
+        closeItemContextMenu();
+        openShareModal();
+      });
+      contextRenameAction.addEventListener('click', function(){
+        closeItemContextMenu();
+        openRenameModal();
+      });
+      contextMoveAction.addEventListener('click', function(){
+        closeItemContextMenu();
+        openMoveModal();
+      });
       uploadButton.addEventListener('click', openUploadModal);
       closeButton.addEventListener('click', closeModal);
       closeUploadButton.addEventListener('click', closeUploadModal);
+      closeWarningButton.addEventListener('click', closeWarningModal);
+      closeRenameButton.addEventListener('click', closeRenameModal);
+      closeMoveButton.addEventListener('click', closeMoveModal);
+      closeShareButton.addEventListener('click', closeShareModal);
+      document.getElementById('rename-cancel').addEventListener('click', closeRenameModal);
+      document.getElementById('move-cancel').addEventListener('click', closeMoveModal);
+      document.getElementById('share-cancel').addEventListener('click', closeShareModal);
+      warningCancelButton.addEventListener('click', closeWarningModal);
+      warningConfirmButton.addEventListener('click', function(){
+        resolveWarningModal(true);
+      });
+      closeFileViewerButton.addEventListener('click', closeFileViewerModal);
 
       if(closeModalButton){
         closeModalButton.addEventListener('click', closeModal);
@@ -379,13 +2377,83 @@
           closeUploadModal();
         }
       });
+      warningModal.addEventListener('click', function(event){
+        if(event.target === warningModal){
+          closeWarningModal();
+        }
+      });
+      renameModal.addEventListener('click', function(event){
+        if(event.target === renameModal){
+          closeRenameModal();
+        }
+      });
+      moveModal.addEventListener('click', function(event){
+        if(event.target === moveModal){
+          closeMoveModal();
+        }
+      });
+      shareModal.addEventListener('click', function(event){
+        if(event.target === shareModal){
+          closeShareModal();
+        }
+      });
+      fileViewerModal.addEventListener('click', function(event){
+        if(event.target === fileViewerModal){
+          closeFileViewerModal();
+        }
+      });
 
       document.addEventListener('keydown', function(event){
         if(event.key === 'Escape' && !modal.hidden){
           closeModal();
+          return;
         }
         if(event.key === 'Escape' && !uploadModal.hidden){
           closeUploadModal();
+          return;
+        }
+        if(event.key === 'Escape' && !warningModal.hidden){
+          closeWarningModal();
+          return;
+        }
+        if(event.key === 'Escape' && !renameModal.hidden){
+          closeRenameModal();
+          return;
+        }
+        if(event.key === 'Escape' && !moveModal.hidden){
+          closeMoveModal();
+          return;
+        }
+        if(event.key === 'Escape' && !shareModal.hidden){
+          closeShareModal();
+          return;
+        }
+        if(event.key === 'Escape' && !fileViewerModal.hidden){
+          closeFileViewerModal();
+          return;
+        }
+        if (event.key === 'Escape' && !itemContextMenu.hidden) {
+          closeItemContextMenu();
+          return;
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+          const activeElement = document.activeElement;
+          const isTypingTarget = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+
+          if (!isTypingTarget) {
+            event.preventDefault();
+            selectAllTiles();
+            return;
+          }
+        }
+        if (event.key === 'Escape') {
+          clearSelectedTiles();
+          selectionAnchorIndex = null;
+          resetPreview();
         }
       });
 
@@ -406,6 +2474,448 @@
         return value.replace('T', ' ');
       }
 
+      function getFormattedModified(value) {
+        return formatDatetime(formatPythonDatetime(value || ''));
+      }
+
+      function getFileExtensionLabel(fileName) {
+        if (!fileName || !fileName.includes('.')) {
+          return 'FILE';
+        }
+
+        const extension = fileName.split('.').pop().trim().toUpperCase();
+        if (!extension) {
+          return 'FILE';
+        }
+
+        return extension.slice(0, 6);
+      }
+
+      function getFileTypeLabel(fileName) {
+        const extensionLabel = getFileExtensionLabel(fileName);
+        if (extensionLabel === 'FILE') {
+          return 'File';
+        }
+
+        return `${extensionLabel} file`;
+      }
+
+      function isFilePublic(fileTile) {
+        return String(fileTile?.dataset.filePublic || '').toLowerCase() === 'true';
+      }
+
+      function isFolderPublic(folderTile) {
+        return String(folderTile?.dataset.folderPublic || '').toLowerCase() === 'true';
+      }
+
+      function isTilePublic(tile) {
+        if (!tile) {
+          return false;
+        }
+
+        return tile.classList.contains('folder') ? isFolderPublic(tile) : isFilePublic(tile);
+      }
+
+      function getTilePublicExpiresAt(tile) {
+        if (!tile) {
+          return '';
+        }
+
+        return tile.classList.contains('folder')
+          ? (tile.dataset.folderPublicExpiresAt || '')
+          : (tile.dataset.filePublicExpiresAt || '');
+      }
+
+      function fileAllowsPublicDownload(fileTile) {
+        return String(fileTile?.dataset.filePublicAllowDownload || '').toLowerCase() !== 'false';
+      }
+
+      function getFileAccessLabel(fileTile) {
+        if (isSharedMode) {
+          return 'Shared with you';
+        }
+        if (!isFilePublic(fileTile)) {
+          return 'Private';
+        }
+
+        const expiresAt = getTilePublicExpiresAt(fileTile);
+        return expiresAt ? `Public until ${formatDatetime(formatPythonDatetime(expiresAt))}` : 'Public';
+      }
+
+      function getFolderAccessLabel(folderTile) {
+        if (isSharedMode) {
+          return 'Shared with you';
+        }
+        if (!isFolderPublic(folderTile)) {
+          return 'Private';
+        }
+
+        const expiresAt = getTilePublicExpiresAt(folderTile);
+        return expiresAt ? `Public until ${formatDatetime(formatPythonDatetime(expiresAt))}` : 'Public';
+      }
+
+      function getFilePreviewUrl(filePublicId) {
+        return `/app/api/files/${filePublicId}/preview`;
+      }
+
+      function getFileRawContentUrl(filePublicId) {
+        return `/app/api/files/${filePublicId}/content`;
+      }
+
+      function getPdfEmbedUrl(rawFileUrl) {
+        if (!rawFileUrl) {
+          return rawFileUrl;
+        }
+
+        const fragmentSeparator = rawFileUrl.includes('#') ? '&' : '#';
+        return `${rawFileUrl}${fragmentSeparator}view=FitH&zoom=page-fit`;
+      }
+
+      function getPublicFileUrl(filePublicId) {
+        return new URL(`/app/files/${filePublicId}`, window.location.origin).href;
+      }
+
+      function getPublicFolderUrl(folderPublicId) {
+        return new URL(`/app/folders/${folderPublicId}`, window.location.origin).href;
+      }
+
+      async function copyTextToClipboard(value) {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(value);
+          return;
+        }
+
+        const helperInput = document.createElement('input');
+        helperInput.value = value;
+        document.body.appendChild(helperInput);
+        helperInput.select();
+        document.execCommand('copy');
+        helperInput.remove();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function setPreviewStageMarkup(markup) {
+        previewStage.innerHTML = markup;
+      }
+
+      function renderPreviewMessage(message) {
+        setPreviewStageMarkup(`<div class="preview-message">${escapeHtml(message)}</div>`);
+      }
+
+      function renderPreviewLoading() {
+        setPreviewStageMarkup('<div class="preview-loading">Loading preview...</div>');
+      }
+
+      function renderTextPreview(textPreview) {
+        const note = textPreview && textPreview.truncated
+          ? '<p class="preview-note">Preview is truncated.</p>'
+          : '';
+        const content = textPreview ? escapeHtml(textPreview.content || '') : '';
+        setPreviewStageMarkup(`${note}<pre class="preview-text">${content}</pre>`);
+      }
+
+      function renderExcelPreview(excelPreview) {
+        if (!excelPreview || !excelPreview.rows || !excelPreview.rows.length) {
+          renderPreviewMessage('Spreadsheet is empty.');
+          return;
+        }
+
+        const noteParts = [];
+        if (excelPreview.sheetName) {
+          noteParts.push(escapeHtml(excelPreview.sheetName));
+        }
+        if (excelPreview.truncated) {
+          noteParts.push('Preview is truncated.');
+        }
+
+        const rowsMarkup = excelPreview.rows.map(function(row){
+          const cellsMarkup = row.map(function(cell){
+            return `<td>${escapeHtml(cell)}</td>`;
+          }).join('');
+          return `<tr>${cellsMarkup}</tr>`;
+        }).join('');
+
+        const noteMarkup = noteParts.length
+          ? `<p class="preview-note">${noteParts.join(' ')}</p>`
+          : '';
+
+        setPreviewStageMarkup(`${noteMarkup}<div class="preview-sheet"><table><tbody>${rowsMarkup}</tbody></table></div>`);
+      }
+
+      function renderFilePreviewContent(previewData, filePublicId) {
+        const rawFileUrl = (previewData && previewData.rawFileUrl) || getFileRawContentUrl(filePublicId);
+        const viewKind = previewData && previewData.viewKind;
+
+        if (viewKind === 'pdf') {
+          setPreviewStageMarkup(`<iframe class="preview-embed-frame" src="${escapeHtml(getPdfEmbedUrl(rawFileUrl))}" title="PDF preview"></iframe>`);
+          return;
+        }
+
+        if (viewKind === 'image') {
+          setPreviewStageMarkup(`<img class="preview-embed-image" src="${escapeHtml(rawFileUrl)}" alt="Image preview">`);
+          return;
+        }
+
+        if (viewKind === 'video') {
+          setPreviewStageMarkup(`<video class="preview-embed-video" src="${escapeHtml(rawFileUrl)}" controls preload="metadata"></video>`);
+          return;
+        }
+
+        if (viewKind === 'text' && previewData.textPreview) {
+          renderTextPreview(previewData.textPreview);
+          return;
+        }
+
+        if (viewKind === 'excel' && previewData.excelPreview) {
+          renderExcelPreview(previewData.excelPreview);
+          return;
+        }
+
+        renderPreviewMessage('Preview is not available for this file type.');
+      }
+
+      function setFileViewerStageMarkup(markup) {
+        fileViewerStage.innerHTML = markup;
+      }
+
+      function renderFileViewerLoading() {
+        setFileViewerStageMarkup('<div class="file-viewer-loading">Loading file...</div>');
+      }
+
+      function renderFileViewerMessage(message) {
+        setFileViewerStageMarkup(`<div class="file-viewer-message">${escapeHtml(message)}</div>`);
+      }
+
+      function renderFileViewerContent(previewData, fileTile) {
+        const filePublicId = fileTile.dataset.filePublicId || '';
+        const rawFileUrl = (previewData && previewData.rawFileUrl) || getFileRawContentUrl(filePublicId);
+        const viewKind = previewData && previewData.viewKind;
+
+        if (viewKind === 'pdf') {
+          setFileViewerStageMarkup(`<iframe class="file-viewer-frame" src="${escapeHtml(getPdfEmbedUrl(rawFileUrl))}" title="PDF preview"></iframe>`);
+          return;
+        }
+
+        if (viewKind === 'image') {
+          setFileViewerStageMarkup(`<img class="file-viewer-image" src="${escapeHtml(rawFileUrl)}" alt="Image preview">`);
+          return;
+        }
+
+        if (viewKind === 'video') {
+          setFileViewerStageMarkup(`<video class="file-viewer-video" src="${escapeHtml(rawFileUrl)}" controls preload="metadata"></video>`);
+          return;
+        }
+
+        if (viewKind === 'text' && previewData.textPreview) {
+          const note = previewData.textPreview.truncated
+            ? '<p class="file-viewer-note">Preview is truncated.</p>'
+            : '';
+          const content = escapeHtml(previewData.textPreview.content || '');
+          setFileViewerStageMarkup(`${note}<pre class="file-viewer-text">${content}</pre>`);
+          return;
+        }
+
+        if (viewKind === 'excel' && previewData.excelPreview && previewData.excelPreview.rows) {
+          const noteParts = [];
+          if (previewData.excelPreview.sheetName) {
+            noteParts.push(escapeHtml(previewData.excelPreview.sheetName));
+          }
+          if (previewData.excelPreview.truncated) {
+            noteParts.push('Preview is truncated.');
+          }
+
+          const noteMarkup = noteParts.length
+            ? `<p class="file-viewer-note">${noteParts.join(' ')}</p>`
+            : '';
+          const rowsMarkup = previewData.excelPreview.rows.map(function(row){
+            const cellsMarkup = row.map(function(cell){
+              return `<td>${escapeHtml(cell)}</td>`;
+            }).join('');
+            return `<tr>${cellsMarkup}</tr>`;
+          }).join('');
+
+          setFileViewerStageMarkup(`${noteMarkup}<div class="file-viewer-sheet"><table><tbody>${rowsMarkup}</tbody></table></div>`);
+          return;
+        }
+
+        renderFileViewerMessage('Preview is not available for this file type.');
+      }
+
+      function closeFileViewerModal() {
+        fileViewerModal.hidden = true;
+        fileViewerTitle.textContent = 'File viewer';
+        fileViewerMeta.innerHTML = '';
+        fileViewerRawLink.setAttribute('href', '#');
+        fileViewerDownloadLink.setAttribute('href', '#');
+        setFileViewerStageMarkup('');
+      }
+
+      function openFileViewerModal(fileTile) {
+        const filePublicId = fileTile.dataset.filePublicId || '';
+        const fileName = fileTile.dataset.fileName || 'File';
+        const fileSize = formatBytes(Number(fileTile.dataset.fileSizeBytes || 0));
+        const fileType = getFileTypeLabel(fileName);
+        const modified = formatDatetime(formatPythonDatetime(fileTile.dataset.fileModified || ''));
+        const access = getFileAccessLabel(fileTile);
+
+        fileViewerTitle.textContent = fileName;
+        fileViewerMeta.innerHTML = `
+          <span class="file-viewer-modal-chip">${escapeHtml(fileType)}</span>
+          <span class="file-viewer-modal-chip">${escapeHtml(fileSize)}</span>
+          <span class="file-viewer-modal-chip">${escapeHtml(modified)}</span>
+          <span class="file-viewer-modal-chip">${escapeHtml(access)}</span>
+        `;
+        fileViewerRawLink.setAttribute('href', getFileRawContentUrl(filePublicId));
+        fileViewerDownloadLink.setAttribute('href', `/app/api/files/${filePublicId}/download`);
+        fileViewerModal.hidden = false;
+        renderFileViewerLoading();
+        closeFileViewerButton.focus();
+      }
+
+      async function loadFileIntoViewer(fileTile) {
+        const filePublicId = fileTile.dataset.filePublicId || '';
+        if (!filePublicId) {
+          renderFileViewerMessage('File could not be opened.');
+          return;
+        }
+
+        openFileViewerModal(fileTile);
+
+        try {
+          const response = await fetch(getFilePreviewUrl(filePublicId));
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || 'Failed to load file');
+          }
+
+          if (fileViewerModal.hidden) {
+            return;
+          }
+
+          renderFileViewerContent(data, fileTile);
+        } catch (error) {
+          if (fileViewerModal.hidden) {
+            return;
+          }
+
+          renderFileViewerMessage(error.message || 'Failed to load file.');
+        }
+      }
+
+      async function loadFilePreview(fileTile) {
+        const filePublicId = fileTile.dataset.filePublicId || '';
+        if (!filePublicId) {
+          renderPreviewMessage('Preview is not available for this file.');
+          return;
+        }
+
+        const currentRequestId = ++previewRequestId;
+        renderPreviewLoading();
+
+        try {
+          const response = await fetch(getFilePreviewUrl(filePublicId));
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || 'Failed to load preview');
+          }
+
+          if (currentRequestId !== previewRequestId) {
+            return;
+          }
+
+          const selectedFileTile = getSingleSelectedFileTile();
+          if (!selectedFileTile || selectedFileTile.dataset.filePublicId !== filePublicId) {
+            return;
+          }
+
+          renderFilePreviewContent(data, filePublicId);
+        } catch (error) {
+          if (currentRequestId !== previewRequestId) {
+            return;
+          }
+          renderPreviewMessage(error.message || 'Failed to load preview.');
+        }
+      }
+
+      function getFolderMetaMarkup(folder) {
+        const modified = getFormattedModified(folder.lastModified || '');
+        return `
+          <div class="tile-name">${folder.folderName}</div>
+          <div class="tile-list-column modified">${modified}</div>
+          <div class="tile-list-column size">--</div>
+          <div class="tile-list-column type">Folder</div>
+          <div class="tile-sub">Last modified<br>${modified}</div>
+        `;
+      }
+
+      function getFileMetaMarkup(file) {
+        const modified = getFormattedModified(file.lastModified || '');
+        const sizeLabel = formatBytes(Number(file.sizeBytes || 0));
+        const typeLabel = getFileTypeLabel(file.fileName || '');
+        return `
+          <div class="tile-name">${file.fileName}</div>
+          <div class="tile-list-column modified">${modified}</div>
+          <div class="tile-list-column size">${sizeLabel}</div>
+          <div class="tile-list-column type">${typeLabel}</div>
+          <div class="tile-sub">${sizeLabel}<br>Last modified<br>${modified}</div>
+        `;
+      }
+
+      function formatFileSizeMarkup() {
+        const folderTiles = document.querySelectorAll('.drive-tile.folder');
+        const fileTiles = document.querySelectorAll('.drive-tile.file');
+
+        folderTiles.forEach(function(tile){
+          const folderName = tile.dataset.folderName || '';
+          const modified = tile.dataset.folderModified || '';
+          const tileMeta = tile.querySelector('.tile-meta');
+          const tileThumb = tile.querySelector('.tile-thumb');
+
+          if (tileThumb) {
+            tileThumb.textContent = 'DIR';
+          }
+
+          if (!tileMeta) {
+            return;
+          }
+
+          tileMeta.innerHTML = getFolderMetaMarkup({
+            folderName,
+            lastModified: modified
+          });
+        });
+
+        fileTiles.forEach(function(tile){
+          const fileName = tile.dataset.fileName || '';
+          const sizeBytes = Number(tile.dataset.fileSizeBytes || 0);
+          const modified = tile.dataset.fileModified || '';
+          const tileMeta = tile.querySelector('.tile-meta');
+          const tileThumb = tile.querySelector('.tile-thumb');
+
+          if (tileThumb) {
+            tileThumb.textContent = getFileExtensionLabel(fileName);
+          }
+
+          if (!tileMeta) {
+            return;
+          }
+
+          tileMeta.innerHTML = getFileMetaMarkup({
+            fileName,
+            sizeBytes,
+            lastModified: modified
+          });
+        });
+      }
+
       function renderError(message) {
         if (!errorBox) {
           return;
@@ -422,37 +2932,645 @@
         uploadErrorBox.textContent = message;
         uploadErrorBox.hidden = false;
       }
+      function renderRenameError(message) {
+        if (!renameErrorBox) {
+          return;
+        }
+
+        renameErrorBox.textContent = message;
+        renameErrorBox.hidden = false;
+      }
+      function renderMoveError(message) {
+        if (!moveErrorBox) {
+          return;
+        }
+
+        moveErrorBox.textContent = message;
+        moveErrorBox.hidden = false;
+      }
+
+      formatFileSizeMarkup();
 
       function renderFolder(folder) {
-        const folderHtml = `
+        moveTargetsCache = null;
+        const folderItem = {
+          itemType: 'folder',
+          publicID: folder.publicID,
+          public: Boolean(folder.public),
+          publicExpiresAt: folder.publicExpiresAt || '',
+          folderName: folder.folderName,
+          lastModified: folder.lastModified
+        };
+        upsertBaseFolderItem(folderItem);
+
+        if (!searchState.active) {
+          filesList.insertAdjacentHTML('afterbegin', getFolderTileMarkup(folderItem));
+        }
+
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function renderFile(file) {
+        if (!file || !filesList) {
+          return;
+        }
+
+        const fileItem = {
+          itemType: 'file',
+          publicID: file.publicID,
+          public: Boolean(file.public),
+          publicExpiresAt: file.publicExpiresAt || '',
+          publicAllowDownload: file.publicAllowDownload !== false,
+          fileName: file.fileName,
+          sizeBytes: Number(file.sizeBytes || 0),
+          lastModified: file.lastModified
+        };
+        upsertBaseFolderItem(fileItem);
+
+        if (!searchState.active) {
+          filesList.insertAdjacentHTML('beforeend', getFileTileMarkup(fileItem));
+        }
+
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function getSelectableTiles() {
+        return Array.from(filesList.querySelectorAll('.drive-tile'));
+      }
+
+      function serializeTile(tile) {
+        if (tile.classList.contains('folder')) {
+        return {
+          itemType: 'folder',
+          publicID: tile.dataset.folderPublicId || '',
+          public: isFolderPublic(tile),
+          publicExpiresAt: tile.dataset.folderPublicExpiresAt || '',
+          folderName: tile.dataset.folderName || '',
+          lastModified: tile.dataset.folderModified || ''
+        };
+        }
+
+        return {
+          itemType: 'file',
+          publicID: tile.dataset.filePublicId || '',
+          public: isFilePublic(tile),
+          publicExpiresAt: tile.dataset.filePublicExpiresAt || '',
+          publicAllowDownload: fileAllowsPublicDownload(tile),
+          fileName: tile.dataset.fileName || '',
+          sizeBytes: Number(tile.dataset.fileSizeBytes || 0),
+          lastModified: tile.dataset.fileModified || ''
+        };
+      }
+
+      function snapshotCurrentFolderItems() {
+        baseFolderItemsState = getSelectableTiles().map(serializeTile);
+      }
+
+      function upsertBaseFolderItem(item) {
+        const itemType = item.itemType || '';
+        const publicID = item.publicID || '';
+        const itemIndex = baseFolderItemsState.findIndex(function(existingItem){
+          return existingItem.itemType === itemType && existingItem.publicID === publicID;
+        });
+
+        if (itemIndex === -1) {
+          baseFolderItemsState.push(item);
+          return;
+        }
+
+        baseFolderItemsState[itemIndex] = {
+          ...baseFolderItemsState[itemIndex],
+          ...item
+        };
+      }
+
+      function removeBaseFolderItems(folderPublicIds, filePublicIds) {
+        const folderIds = new Set(folderPublicIds || []);
+        const fileIds = new Set(filePublicIds || []);
+
+        baseFolderItemsState = baseFolderItemsState.filter(function(item){
+          if (item.itemType === 'folder') {
+            return !folderIds.has(item.publicID);
+          }
+
+          return !fileIds.has(item.publicID);
+        });
+      }
+
+      function getFolderTileMarkup(folder) {
+        return `
           <div
             class="drive-tile folder"
+            draggable="true"
             data-folder-public-id="${folder.publicID}"
+            data-folder-public="${folder.public ? 'true' : 'false'}"
+            data-folder-public-expires-at="${folder.publicExpiresAt || ''}"
             data-folder-name="${folder.folderName}"
             data-folder-modified="${folder.lastModified}"
           >
-            <div class="tile-thumb folder">Folder</div>
-              <div class="tile-meta">
-                <div class="tile-name">${folder.folderName}</div>
-                <div class="tile-sub">Last modified<br>${formatDatetime(formatPythonDatetime(folder.lastModified))}</div>
+            <div class="tile-thumb folder">DIR</div>
+            <div class="tile-meta">
+              ${getFolderMetaMarkup(folder)}
+            </div>
           </div>
-        </div>
         `;
-
-        filesList.insertAdjacentHTML('afterbegin', folderHtml);
       }
 
-      function setSelectedFolder(folderTile) {
-        const selectedFolders = document.querySelectorAll('.drive-tile.folder.selected');
-        selectedFolders.forEach(function(tile){
-          tile.classList.remove('selected');
+      function getFileTileMarkup(file) {
+        return `
+          <div
+            class="drive-tile file"
+            draggable="true"
+            data-file-public-id="${file.publicID}"
+            data-file-public="${file.public ? 'true' : 'false'}"
+            data-file-public-expires-at="${file.publicExpiresAt || ''}"
+            data-file-public-allow-download="${file.publicAllowDownload === false ? 'false' : 'true'}"
+            data-file-name="${file.fileName}"
+            data-file-size-bytes="${file.sizeBytes}"
+            data-file-modified="${file.lastModified}"
+          >
+            <div class="tile-thumb image">${getFileExtensionLabel(file.fileName)}</div>
+            <div class="tile-meta">
+              ${getFileMetaMarkup(file)}
+            </div>
+          </div>
+        `;
+      }
+
+      function replaceVisibleTiles(items) {
+        getSelectableTiles().forEach(function(tile){
+          tile.remove();
         });
 
-        folderTile.classList.add('selected');
+        const markup = items.map(function(item){
+          return item.itemType === 'folder'
+            ? getFolderTileMarkup(item)
+            : getFileTileMarkup(item);
+        }).join('');
+
+        if (markup) {
+          filesSelectionBox.insertAdjacentHTML('beforebegin', markup);
+        }
+      }
+
+      function restoreBaseFolderItems() {
+        searchRequestId += 1;
+        searchState.active = false;
+        searchState.query = '';
+        clearSelectedTiles();
+        selectionAnchorIndex = null;
+        resetPreview();
+        replaceVisibleTiles(baseFolderItemsState);
+        applyLocalSearchFilter('');
+      }
+
+      function getActiveSearchFilters() {
+        const minSizeMb = Number(searchMinSizeInput.value || 0);
+        const maxSizeMb = Number(searchMaxSizeInput.value || 0);
+
+        return {
+          kind: searchKindFilter.value || 'all',
+          dateFrom: searchDateFromInput.value || '',
+          dateTo: searchDateToInput.value || '',
+          minSize: minSizeMb > 0 ? Math.round(minSizeMb * 1024 * 1024) : null,
+          maxSize: maxSizeMb > 0 ? Math.round(maxSizeMb * 1024 * 1024) : null
+        };
+      }
+
+      function hasActiveSearchFilters(filters) {
+        return Boolean(
+          filters.kind && filters.kind !== 'all'
+          || filters.dateFrom
+          || filters.dateTo
+          || filters.minSize !== null
+          || filters.maxSize !== null
+        );
+      }
+
+      async function runDriveSearch(query) {
+        const normalizedQuery = normalizeSearchValue(query);
+        const filters = getActiveSearchFilters();
+        if (driveSearchScope !== 'own') {
+          searchState.active = Boolean(normalizedQuery);
+          searchState.query = normalizedQuery;
+          clearSelectedTiles();
+          selectionAnchorIndex = null;
+          resetPreview();
+          replaceVisibleTiles(baseFolderItemsState);
+          applyLocalSearchFilter(normalizedQuery);
+          return;
+        }
+        if (!normalizedQuery && !hasActiveSearchFilters(filters)) {
+          restoreBaseFolderItems();
+          return;
+        }
+
+        const currentRequestId = ++searchRequestId;
+        searchState.active = true;
+        searchState.query = normalizedQuery;
+
+        try {
+          const searchParams = new URLSearchParams();
+          if (normalizedQuery) {
+            searchParams.set('query', normalizedQuery);
+          }
+          if (filters.kind && filters.kind !== 'all') {
+            searchParams.set('kind', filters.kind);
+          }
+          if (filters.dateFrom) {
+            searchParams.set('date_from', filters.dateFrom);
+          }
+          if (filters.dateTo) {
+            searchParams.set('date_to', filters.dateTo);
+          }
+          if (filters.minSize !== null) {
+            searchParams.set('min_size', String(filters.minSize));
+          }
+          if (filters.maxSize !== null) {
+            searchParams.set('max_size', String(filters.maxSize));
+          }
+
+          const response = await fetch(`/app/api/search?${searchParams.toString()}`);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.detail || 'Failed to search files');
+          }
+
+          if (currentRequestId !== searchRequestId) {
+            return;
+          }
+
+          const items = [
+            ...(data.folders || []).map(function(folder){
+              return {
+                itemType: 'folder',
+                publicID: folder.publicID,
+                public: Boolean(folder.public),
+                publicExpiresAt: folder.publicExpiresAt || '',
+                folderName: folder.folderName,
+                lastModified: folder.lastModified,
+                path: folder.path || ''
+              };
+            }),
+            ...(data.files || []).map(function(file){
+              return {
+                itemType: 'file',
+                publicID: file.publicID,
+                public: Boolean(file.public),
+                publicExpiresAt: file.publicExpiresAt || '',
+                publicAllowDownload: file.publicAllowDownload !== false,
+                fileName: file.fileName,
+                sizeBytes: Number(file.sizeBytes || 0),
+                lastModified: file.lastModified,
+                path: file.path || ''
+              };
+            })
+          ];
+
+          clearSelectedTiles();
+          selectionAnchorIndex = null;
+          resetPreview();
+          replaceVisibleTiles(items);
+          applyLocalSearchFilter('');
+          updateSearchEmptyState(items.length, normalizedQuery);
+        } catch (error) {
+          if (currentRequestId !== searchRequestId) {
+            return;
+          }
+
+          clearSelectedTiles();
+          selectionAnchorIndex = null;
+          resetPreview();
+          replaceVisibleTiles([]);
+          renderPreviewMessage('Search failed.');
+          updateSearchEmptyState(0, normalizedQuery || 'filters');
+        }
+      }
+
+      function scheduleDriveSearch(query) {
+        if (searchDebounceTimer) {
+          window.clearTimeout(searchDebounceTimer);
+        }
+
+        searchDebounceTimer = window.setTimeout(function(){
+          runDriveSearch(query);
+        }, 180);
+      }
+
+      function getTileModifiedTimestamp(tile) {
+        const modifiedValue = tile.classList.contains('folder')
+          ? (tile.dataset.folderModified || '')
+          : (tile.dataset.fileModified || '');
+        const normalizedValue = formatPythonDatetime(modifiedValue).replace(' ', 'T');
+        const parsedValue = Date.parse(normalizedValue);
+        return Number.isNaN(parsedValue) ? 0 : parsedValue;
+      }
+
+      function getTileNameValue(tile) {
+        if (tile.classList.contains('folder')) {
+          return tile.dataset.folderName || '';
+        }
+
+        return tile.dataset.fileName || '';
+      }
+
+      function getTileSizeValue(tile) {
+        if (tile.classList.contains('folder')) {
+          return -1;
+        }
+
+        return Number(tile.dataset.fileSizeBytes || 0);
+      }
+
+      function getTileTypeValue(tile) {
+        if (tile.classList.contains('folder')) {
+          return '';
+        }
+
+        const fileName = tile.dataset.fileName || '';
+        const parts = fileName.split('.');
+        if (parts.length < 2) {
+          return 'file';
+        }
+
+        return parts[parts.length - 1].toLowerCase();
+      }
+
+      function normalizeSearchValue(value) {
+        return (value || '').trim().toLowerCase();
+      }
+
+      function compareTextValues(firstValue, secondValue) {
+        return firstValue.localeCompare(secondValue, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+      }
+
+      function compareTilesByFolderFirst(firstTile, secondTile) {
+        const firstIsFolder = firstTile.classList.contains('folder');
+        const secondIsFolder = secondTile.classList.contains('folder');
+
+        if (firstIsFolder === secondIsFolder) {
+          return 0;
+        }
+
+        return firstIsFolder ? -1 : 1;
+      }
+
+      function compareTiles(firstTile, secondTile, sortMode) {
+        const folderBias = compareTilesByFolderFirst(firstTile, secondTile);
+        if (folderBias !== 0) {
+          return folderBias;
+        }
+
+        if (sortMode === 'name-desc') {
+          return compareTextValues(getTileNameValue(secondTile), getTileNameValue(firstTile));
+        }
+
+        if (sortMode === 'date-desc') {
+          const dateCompare = getTileModifiedTimestamp(secondTile) - getTileModifiedTimestamp(firstTile);
+          return dateCompare || compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+        }
+
+        if (sortMode === 'date-asc') {
+          const dateCompare = getTileModifiedTimestamp(firstTile) - getTileModifiedTimestamp(secondTile);
+          return dateCompare || compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+        }
+
+        if (sortMode === 'size-desc') {
+          const sizeCompare = getTileSizeValue(secondTile) - getTileSizeValue(firstTile);
+          return sizeCompare || compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+        }
+
+        if (sortMode === 'size-asc') {
+          const sizeCompare = getTileSizeValue(firstTile) - getTileSizeValue(secondTile);
+          return sizeCompare || compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+        }
+
+        if (sortMode === 'type-asc') {
+          const typeCompare = compareTextValues(getTileTypeValue(firstTile), getTileTypeValue(secondTile));
+          return typeCompare || compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+        }
+
+        return compareTextValues(getTileNameValue(firstTile), getTileNameValue(secondTile));
+      }
+
+      function applyTileSorting() {
+        const sortMode = sortSelect.value || 'name-asc';
+        const orderedTiles = getSelectableTiles().sort(function(firstTile, secondTile){
+          return compareTiles(firstTile, secondTile, sortMode);
+        });
+
+        orderedTiles.forEach(function(tile){
+          filesList.insertBefore(tile, filesSelectionBox);
+        });
+      }
+
+      function updateListSortHeader(sortMode) {
+        listSortButtons.forEach(function(button){
+          const sortKey = button.dataset.sortKey || '';
+          const sortModes = listSortModeMap[sortKey] || [];
+          const isActive = sortModes.includes(sortMode);
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+
+          if (!isActive) {
+            button.dataset.direction = '';
+            return;
+          }
+
+          const direction = sortMode.endsWith('-desc') ? 'desc' : 'asc';
+          button.dataset.direction = direction;
+        });
+      }
+
+      function setSortMode(mode) {
+        const normalizedMode = supportedSortModes.includes(mode) ? mode : 'name-asc';
+        sortSelect.value = normalizedMode;
+        updateListSortHeader(normalizedMode);
+
+        try {
+          window.localStorage.setItem(fileSortStorageKey, normalizedMode);
+        } catch (error) {
+        }
+      }
+
+      function getInitialSortMode() {
+        try {
+          const savedMode = window.localStorage.getItem(fileSortStorageKey);
+          return supportedSortModes.includes(savedMode) ? savedMode : 'name-asc';
+        } catch (error) {
+          return 'name-asc';
+        }
+      }
+
+      function getTileSearchLabel(tile) {
+        if (tile.classList.contains('folder')) {
+          return normalizeSearchValue(tile.dataset.folderName || tile.querySelector('.tile-name')?.textContent || '');
+        }
+
+        return normalizeSearchValue(tile.dataset.fileName || tile.querySelector('.tile-name')?.textContent || '');
+      }
+
+      function updateSearchEmptyState(visibleCount, query) {
+        if (visibleCount > 0) {
+          searchEmptyState.hidden = true;
+          return;
+        }
+
+        searchEmptyState.textContent = query
+          ? 'No files or folders found.'
+          : 'No files or folders found.';
+        searchEmptyState.hidden = false;
+      }
+
+      function setFileView(mode) {
+        const normalizedMode = mode === 'list' ? 'list' : 'grid';
+        filesList.classList.toggle('view-list', normalizedMode === 'list');
+        document.body.classList.toggle('list-view', normalizedMode === 'list');
+        gridViewToggle.classList.toggle('active', normalizedMode === 'grid');
+        listViewToggle.classList.toggle('active', normalizedMode === 'list');
+        gridViewToggle.setAttribute('aria-pressed', normalizedMode === 'grid' ? 'true' : 'false');
+        listViewToggle.setAttribute('aria-pressed', normalizedMode === 'list' ? 'true' : 'false');
+
+        try {
+          window.localStorage.setItem(fileViewStorageKey, normalizedMode);
+        } catch (error) {
+        }
+      }
+
+      function getInitialFileView() {
+        try {
+          const savedMode = window.localStorage.getItem(fileViewStorageKey);
+          return savedMode === 'list' ? 'list' : 'grid';
+        } catch (error) {
+          return 'grid';
+        }
+      }
+
+      function applyLocalSearchFilter(query) {
+        const normalizedQuery = normalizeSearchValue(query);
+        applyTileSorting();
+        const tiles = getSelectableTiles();
+        let visibleCount = 0;
+
+        tiles.forEach(function(tile){
+          const matches = !normalizedQuery || getTileSearchLabel(tile).includes(normalizedQuery);
+          tile.hidden = !matches;
+          if (matches) {
+            visibleCount += 1;
+          }
+        });
+
+        updateSearchEmptyState(visibleCount, normalizedQuery);
+
+        const selectedTiles = getSelectedTiles();
+        if (selectedTiles.some(function(tile){ return tile.hidden; })) {
+          clearSelectedTiles();
+          selectionAnchorIndex = null;
+          resetPreview();
+        }
+
+        closeItemContextMenu();
+        hideSelectionBox();
+      }
+
+      function applySearchFilter(query) {
+        const normalizedQuery = normalizeSearchValue(query);
+        const hasFilters = hasActiveSearchFilters(getActiveSearchFilters());
+
+        if (isReadOnly) {
+          applyLocalSearchFilter(normalizedQuery);
+          return;
+        }
+
+        if (!normalizedQuery && !hasFilters) {
+          restoreBaseFolderItems();
+          return;
+        }
+
+        scheduleDriveSearch(normalizedQuery);
+      }
+
+      function getSelectedTiles() {
+        return getSelectableTiles().filter(function(tile){
+          return tile.classList.contains('selected');
+        });
+      }
+
+      function getSingleSelectedTile() {
+        const selectedTiles = getSelectedTiles();
+        if (selectedTiles.length !== 1) {
+          return null;
+        }
+
+        return selectedTiles[0];
+      }
+
+      function getSingleSelectedFileTile() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile || !selectedTile.classList.contains('file')) {
+          return null;
+        }
+
+        return selectedTile;
+      }
+
+      function updateSelectionActions() {
+        if (!deleteSelectedButton) {
+          return;
+        }
+
+        deleteSelectedButton.disabled = getSelectedTiles().length === 0;
+      }
+
+      function clearSelectedTiles() {
+        const selectedTiles = document.querySelectorAll('.drive-tile.selected');
+        selectedTiles.forEach(function(tile){
+          tile.classList.remove('selected');
+        });
+        updateSelectionActions();
+      }
+
+      function resetPreview() {
+        previewRequestId += 1;
+
+        if (previewEmpty) {
+          previewEmpty.textContent = 'Select a file to preview.';
+        }
+
+        setPreviewStageMarkup('<div class="preview-empty">Select a file to preview.</div>');
+
+        if (previewName) {
+          previewName.textContent = '—';
+        }
+
+        if (previewType) {
+          previewType.textContent = '—';
+        }
+
+        if (previewSize) {
+          previewSize.textContent = '—';
+        }
+
+        if (previewModified) {
+          previewModified.textContent = '—';
+        }
+
+        if (previewAccess) {
+          previewAccess.textContent = '—';
+        }
+      }
+
+      function renderFolderPreview(folderTile) {
+        previewRequestId += 1;
 
         if (previewEmpty) {
           previewEmpty.textContent = 'Folder selected.';
         }
+
+        renderPreviewMessage('Folder selected.');
 
         if (previewName) {
           previewName.textContent = folderTile.dataset.folderName || 'Folder';
@@ -470,6 +3588,661 @@
           const modified = folderTile.dataset.folderModified || '';
           previewModified.textContent = formatDatetime(formatPythonDatetime(modified));
         }
+
+        if (previewAccess) {
+          previewAccess.textContent = getFolderAccessLabel(folderTile);
+        }
+      }
+
+      function renderFilePreview(fileTile) {
+        if (previewName) {
+          previewName.textContent = fileTile.dataset.fileName || 'File';
+        }
+
+        if (previewType) {
+          previewType.textContent = getFileTypeLabel(fileTile.dataset.fileName || '');
+        }
+
+        if (previewSize) {
+          previewSize.textContent = formatBytes(Number(fileTile.dataset.fileSizeBytes || 0));
+        }
+
+        if (previewModified) {
+          const modified = fileTile.dataset.fileModified || '';
+          previewModified.textContent = formatDatetime(formatPythonDatetime(modified));
+        }
+
+        if (previewAccess) {
+          previewAccess.textContent = getFileAccessLabel(fileTile);
+        }
+
+        loadFilePreview(fileTile);
+      }
+
+      function updateSelectionPreview() {
+        const selectedTiles = getSelectedTiles();
+        updateSelectionActions();
+
+        if (selectedTiles.length === 0) {
+          resetPreview();
+          return;
+        }
+
+        if (selectedTiles.length === 1) {
+          const selectedTile = selectedTiles[0];
+          if (selectedTile.classList.contains('folder')) {
+            renderFolderPreview(selectedTile);
+            return;
+          }
+
+          renderFilePreview(selectedTile);
+          return;
+        }
+
+        const selectedFoldersCount = selectedTiles.filter(function(tile){
+          return tile.classList.contains('folder');
+        }).length;
+        const selectedFiles = selectedTiles.filter(function(tile){
+          return tile.classList.contains('file');
+        });
+        const totalSizeBytes = selectedFiles.reduce(function(total, tile){
+          return total + Number(tile.dataset.fileSizeBytes || 0);
+        }, 0);
+
+        if (previewEmpty) {
+          previewEmpty.textContent = `${selectedTiles.length} items selected.`;
+        }
+
+        renderPreviewMessage(`${selectedTiles.length} items selected.`);
+
+        if (previewName) {
+          previewName.textContent = `${selectedTiles.length} items`;
+        }
+
+        if (previewType) {
+          previewType.textContent = `${selectedFoldersCount} folders, ${selectedFiles.length} files`;
+        }
+
+        if (previewSize) {
+          previewSize.textContent = formatBytes(totalSizeBytes);
+        }
+
+        if (previewModified) {
+          previewModified.textContent = '—';
+        }
+
+        if (previewAccess) {
+          previewAccess.textContent = '—';
+        }
+      }
+
+      function selectOnly(tile) {
+        clearSelectedTiles();
+        if (tile) {
+          tile.classList.add('selected');
+        }
+        updateSelectionPreview();
+      }
+
+      function toggleSelection(tile) {
+        if (!tile) {
+          return;
+        }
+
+        tile.classList.toggle('selected');
+        updateSelectionPreview();
+      }
+
+      function selectAllTiles() {
+        const tiles = getSelectableTiles();
+        clearSelectedTiles();
+
+        tiles.forEach(function(tile){
+          tile.classList.add('selected');
+        });
+
+        selectionAnchorIndex = tiles.length > 0 ? 0 : null;
+        updateSelectionPreview();
+      }
+
+      function collectSelectedItems() {
+        const selectedTiles = getSelectedTiles();
+        const folderPublicIds = [];
+        const filePublicIds = [];
+
+        selectedTiles.forEach(function(tile){
+          if (tile.classList.contains('folder')) {
+            if (tile.dataset.folderPublicId) {
+              folderPublicIds.push(tile.dataset.folderPublicId);
+            }
+            return;
+          }
+
+          if (tile.dataset.filePublicId) {
+            filePublicIds.push(tile.dataset.filePublicId);
+          }
+        });
+
+        return {
+          folderPublicIds,
+          filePublicIds
+        };
+      }
+
+      async function deleteSelectedItems() {
+        const response = await fetch('/app/api/delete-items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(collectSelectedItems())
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to delete selected items');
+        }
+
+        return data;
+      }
+
+      async function renameSelectedItem(newName) {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile) {
+          throw new Error('Select one item to rename');
+        }
+
+        const payload = {
+          newName
+        };
+
+        if (selectedTile.classList.contains('folder')) {
+          payload.folderPublicId = selectedTile.dataset.folderPublicId || '';
+        } else {
+          payload.filePublicId = selectedTile.dataset.filePublicId || '';
+        }
+
+        const response = await fetch('/app/api/rename-item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to rename item');
+        }
+
+        return data;
+      }
+
+      async function moveSelectedItems(destinationPublicId) {
+        const response = await fetch('/app/api/move-items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...collectSelectedItems(),
+            destinationPublicId
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to move items');
+        }
+
+        return data;
+      }
+
+      async function moveDraggedItems(destinationPublicId) {
+        const response = await fetch('/app/api/move-items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...getDraggedItemsPayload(),
+            destinationPublicId
+          })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to move items');
+        }
+
+        return data;
+      }
+
+      async function updateSelectedFileVisibility(isPublic) {
+        const selectedFileTile = getSingleSelectedFileTile();
+        if (!selectedFileTile) {
+          throw new Error('Select one file');
+        }
+
+        const filePublicId = selectedFileTile.dataset.filePublicId || '';
+        const response = await fetch(`/app/api/files/${filePublicId}/visibility`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            public: isPublic
+          })
+        });
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to update file access');
+        }
+
+        if (data.file) {
+          applyFileDataToTile(selectedFileTile, data.file);
+          updateSelectionPreview();
+        }
+
+        return data;
+      }
+
+      async function updateSelectedFolderVisibility(isPublic) {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile || !selectedTile.classList.contains('folder')) {
+          throw new Error('Select one folder');
+        }
+
+        const folderPublicId = selectedTile.dataset.folderPublicId || '';
+        const response = await fetch(`/app/api/folders/${folderPublicId}/visibility`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            public: isPublic
+          })
+        });
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to update folder access');
+        }
+
+        if (data.folder) {
+          applyFolderDataToTile(selectedTile, data.folder);
+          updateSelectionPreview();
+        }
+
+        return data;
+      }
+
+      async function toggleSelectedFileVisibility() {
+        const selectedFileTile = getSingleSelectedFileTile();
+        if (!selectedFileTile) {
+          throw new Error('Select one file');
+        }
+
+        return updateSelectedFileVisibility(!isFilePublic(selectedFileTile));
+      }
+
+      async function toggleSelectedItemVisibility() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile) {
+          throw new Error('Select one item');
+        }
+
+        if (selectedTile.classList.contains('folder')) {
+          return updateSelectedFolderVisibility(!isFolderPublic(selectedTile));
+        }
+
+        return updateSelectedFileVisibility(!isFilePublic(selectedTile));
+      }
+
+      async function updateSelectedFileShareSettings(options) {
+        const selectedFileTile = shareItemTarget || getSingleSelectedFileTile();
+        if (!selectedFileTile) {
+          throw new Error('Select one file');
+        }
+
+        const filePublicId = selectedFileTile.dataset.filePublicId || '';
+        const response = await fetch(`/app/api/files/${filePublicId}/share-settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(options)
+        });
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to update file share settings');
+        }
+
+        if (data.file) {
+          applyFileDataToTile(selectedFileTile, data.file);
+          updateSelectionPreview();
+        }
+
+        return data;
+      }
+
+      async function updateSelectedFolderShareSettings(options) {
+        const selectedTile = shareItemTarget || getSingleSelectedTile();
+        if (!selectedTile || !selectedTile.classList.contains('folder')) {
+          throw new Error('Select one folder');
+        }
+
+        const folderPublicId = selectedTile.dataset.folderPublicId || '';
+        const response = await fetch(`/app/api/folders/${folderPublicId}/share-settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(options)
+        });
+        const data = await parseUploadResponse(response);
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to update folder share settings');
+        }
+
+        if (data.folder) {
+          applyFolderDataToTile(selectedTile, data.folder);
+          updateSelectionPreview();
+        }
+
+        return data;
+      }
+
+      async function copySelectedPublicFileLink() {
+        const selectedFileTile = getSingleSelectedFileTile();
+        if (!selectedFileTile) {
+          throw new Error('Select one file');
+        }
+
+        if (!isFilePublic(selectedFileTile)) {
+          throw new Error('File is private');
+        }
+
+        await copyTextToClipboard(getPublicFileUrl(selectedFileTile.dataset.filePublicId || ''));
+      }
+
+      async function copySelectedPublicItemLink() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile) {
+          throw new Error('Select one item');
+        }
+
+        if (!isTilePublic(selectedTile)) {
+          throw new Error('Item is private');
+        }
+
+        if (selectedTile.classList.contains('folder')) {
+          await copyTextToClipboard(getPublicFolderUrl(selectedTile.dataset.folderPublicId || ''));
+          return;
+        }
+
+        await copySelectedPublicFileLink();
+      }
+
+      function downloadSelectedFile() {
+        const selectedFileTile = getSingleSelectedFileTile();
+        if (!selectedFileTile) {
+          return;
+        }
+
+        const filePublicId = selectedFileTile.dataset.filePublicId || '';
+        if (!filePublicId) {
+          return;
+        }
+
+        window.location.href = `/app/api/files/${filePublicId}/download`;
+      }
+
+      function applyFolderDataToTile(tile, folder) {
+        moveTargetsCache = null;
+        upsertBaseFolderItem({
+          itemType: 'folder',
+          publicID: folder.publicID,
+          public: Boolean(folder.public),
+          publicExpiresAt: folder.publicExpiresAt || '',
+          folderName: folder.folderName,
+          lastModified: folder.lastModified
+        });
+        tile.dataset.folderPublicId = folder.publicID;
+        tile.dataset.folderPublic = folder.public ? 'true' : 'false';
+        tile.dataset.folderPublicExpiresAt = folder.publicExpiresAt || '';
+        tile.dataset.folderName = folder.folderName;
+        tile.dataset.folderModified = folder.lastModified;
+
+        const thumbNode = tile.querySelector('.tile-thumb');
+        const metaNode = tile.querySelector('.tile-meta');
+        if (thumbNode) {
+          thumbNode.textContent = 'DIR';
+        }
+        if (metaNode) {
+          metaNode.innerHTML = getFolderMetaMarkup(folder);
+        }
+
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function applyFileDataToTile(tile, file) {
+        upsertBaseFolderItem({
+          itemType: 'file',
+          publicID: file.publicID,
+          public: Boolean(file.public),
+          publicExpiresAt: file.publicExpiresAt || '',
+          publicAllowDownload: file.publicAllowDownload !== false,
+          fileName: file.fileName,
+          sizeBytes: Number(file.sizeBytes || 0),
+          lastModified: file.lastModified
+        });
+        tile.dataset.filePublicId = file.publicID;
+        tile.dataset.filePublic = file.public ? 'true' : 'false';
+        tile.dataset.filePublicExpiresAt = file.publicExpiresAt || '';
+        tile.dataset.filePublicAllowDownload = file.publicAllowDownload === false ? 'false' : 'true';
+        tile.dataset.fileName = file.fileName;
+        tile.dataset.fileSizeBytes = String(file.sizeBytes);
+        tile.dataset.fileModified = file.lastModified;
+
+        const thumbNode = tile.querySelector('.tile-thumb');
+        const metaNode = tile.querySelector('.tile-meta');
+        if (thumbNode) {
+          thumbNode.textContent = getFileExtensionLabel(file.fileName);
+        }
+        if (metaNode) {
+          metaNode.innerHTML = getFileMetaMarkup(file);
+        }
+
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function removeDeletedTiles(result) {
+        moveTargetsCache = null;
+        const deletedFolderPublicIds = new Set(result.deletedFolderPublicIds || []);
+        const deletedFilePublicIds = new Set(result.deletedFilePublicIds || []);
+        removeBaseFolderItems(result.deletedFolderPublicIds || [], result.deletedFilePublicIds || []);
+
+        getSelectableTiles().forEach(function(tile){
+          if (tile.classList.contains('folder') && deletedFolderPublicIds.has(tile.dataset.folderPublicId)) {
+            tile.remove();
+            return;
+          }
+
+          if (tile.classList.contains('file') && deletedFilePublicIds.has(tile.dataset.filePublicId || '')) {
+            tile.remove();
+          }
+        });
+
+        selectionAnchorIndex = null;
+        clearSelectedTiles();
+        resetPreview();
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function removeMovedTiles(result) {
+        moveTargetsCache = null;
+        const movedFolderPublicIds = new Set(result.movedFolderPublicIds || []);
+        const movedFilePublicIds = new Set(result.movedFilePublicIds || []);
+        removeBaseFolderItems(result.movedFolderPublicIds || [], result.movedFilePublicIds || []);
+
+        getSelectableTiles().forEach(function(tile){
+          if (tile.classList.contains('folder') && movedFolderPublicIds.has(tile.dataset.folderPublicId)) {
+            tile.remove();
+            return;
+          }
+
+          if (tile.classList.contains('file') && movedFilePublicIds.has(tile.dataset.filePublicId || '')) {
+            tile.remove();
+          }
+        });
+
+        selectionAnchorIndex = null;
+        clearSelectedTiles();
+        resetPreview();
+        applySearchFilter(fileSearchInput.value);
+      }
+
+      function selectTileRange(targetTile, additive) {
+        const tiles = getSelectableTiles();
+        const targetIndex = tiles.indexOf(targetTile);
+        const anchorIndex = selectionAnchorIndex === null ? targetIndex : selectionAnchorIndex;
+
+        if (targetIndex === -1 || anchorIndex === -1) {
+          selectOnly(targetTile);
+          selectionAnchorIndex = targetIndex;
+          return;
+        }
+
+        if (!additive) {
+          clearSelectedTiles();
+        }
+
+        const startIndex = Math.min(anchorIndex, targetIndex);
+        const endIndex = Math.max(anchorIndex, targetIndex);
+        for (let index = startIndex; index <= endIndex; index += 1) {
+          tiles[index].classList.add('selected');
+        }
+
+        updateSelectionPreview();
+      }
+
+      function getSelectionRect(startX, startY, currentX, currentY) {
+        return {
+          left: Math.min(startX, currentX),
+          top: Math.min(startY, currentY),
+          right: Math.max(startX, currentX),
+          bottom: Math.max(startY, currentY)
+        };
+      }
+
+      function applyMarqueeSelection(rect, additive) {
+        const tiles = getSelectableTiles();
+        if (!additive) {
+          clearSelectedTiles();
+        } else if (dragSelection && dragSelection.baseSelectedTiles) {
+          tiles.forEach(function(tile){
+            tile.classList.toggle('selected', dragSelection.baseSelectedTiles.has(tile));
+          });
+        }
+
+        tiles.forEach(function(tile){
+          const tileRect = tile.getBoundingClientRect();
+          const intersects =
+            rect.left <= tileRect.right &&
+            rect.right >= tileRect.left &&
+            rect.top <= tileRect.bottom &&
+            rect.bottom >= tileRect.top;
+
+          if (intersects) {
+            tile.classList.add('selected');
+          }
+        });
+
+        updateSelectionPreview();
+      }
+
+      function updateSelectionBox(startX, startY, currentX, currentY) {
+        if (!filesSelectionBox) {
+          return;
+        }
+
+        const listRect = filesList.getBoundingClientRect();
+        const rect = getSelectionRect(startX, startY, currentX, currentY);
+        filesSelectionBox.hidden = false;
+        filesSelectionBox.style.left = `${rect.left - listRect.left}px`;
+        filesSelectionBox.style.top = `${rect.top - listRect.top}px`;
+        filesSelectionBox.style.width = `${rect.right - rect.left}px`;
+        filesSelectionBox.style.height = `${rect.bottom - rect.top}px`;
+      }
+
+      function hideSelectionBox() {
+        if (!filesSelectionBox) {
+          return;
+        }
+
+        filesSelectionBox.hidden = true;
+        filesSelectionBox.style.width = '0px';
+        filesSelectionBox.style.height = '0px';
+      }
+
+      function clearDropTarget() {
+        if (!currentDropTarget) {
+          return;
+        }
+
+        currentDropTarget.classList.remove('drop-target');
+        currentDropTarget = null;
+      }
+
+      function setDropTarget(folderTile) {
+        if (currentDropTarget === folderTile) {
+          return;
+        }
+
+        clearDropTarget();
+        currentDropTarget = folderTile;
+
+        if (currentDropTarget) {
+          currentDropTarget.classList.add('drop-target');
+        }
+      }
+
+      function getDraggedItemsPayload() {
+        const selectedTiles = draggedTiles.length > 0 ? draggedTiles : getSelectedTiles();
+        const folderPublicIds = [];
+        const filePublicIds = [];
+
+        selectedTiles.forEach(function(tile){
+          if (tile.classList.contains('folder')) {
+            if (tile.dataset.folderPublicId) {
+              folderPublicIds.push(tile.dataset.folderPublicId);
+            }
+            return;
+          }
+
+          if (tile.dataset.filePublicId) {
+            filePublicIds.push(tile.dataset.filePublicId);
+          }
+        });
+
+        return {
+          folderPublicIds,
+          filePublicIds
+        };
+      }
+
+      function canDropOnFolder(folderTile) {
+        if (!folderTile) {
+          return false;
+        }
+
+        const folderPublicId = folderTile.dataset.folderPublicId || '';
+        if (!folderPublicId) {
+          return false;
+        }
+
+        const draggedItems = getDraggedItemsPayload();
+        return !draggedItems.folderPublicIds.includes(folderPublicId);
       }
 
       function openFolder(folderTile) {
@@ -481,35 +4254,367 @@
         window.location.href = `/app/folders/${publicID}`;
       }
 
+      function openFile(fileTile) {
+        if (!fileTile || !fileTile.dataset.filePublicId) {
+          return;
+        }
+
+        loadFileIntoViewer(fileTile);
+      }
+
       filesList.addEventListener('click', function(event){
-        const folderTile = event.target.closest('.drive-tile.folder');
-        if (!folderTile) {
+        closeItemContextMenu();
+
+        if (suppressNextClick) {
+          suppressNextClick = false;
+          return;
+        }
+
+        const tile = event.target.closest('.drive-tile');
+        const additive = event.ctrlKey || event.metaKey;
+
+        if (!tile) {
+          if (event.target === filesList) {
+            if (!additive) {
+              clearSelectedTiles();
+              selectionAnchorIndex = null;
+              resetPreview();
+            }
+          }
           return;
         }
 
         if (folderClickTimer) {
           clearTimeout(folderClickTimer);
+          folderClickTimer = null;
         }
 
-        folderClickTimer = window.setTimeout(function(){
-          setSelectedFolder(folderTile);
+        const tiles = getSelectableTiles();
+        const tileIndex = tiles.indexOf(tile);
+
+        if (event.shiftKey) {
+          selectTileRange(tile, additive);
+          return;
+        }
+
+        if (additive) {
+          toggleSelection(tile);
+          if (tileIndex !== -1) {
+            selectionAnchorIndex = tileIndex;
+          }
+          return;
+        }
+
+        if (tile.classList.contains('folder')) {
+          folderClickTimer = window.setTimeout(function(){
+            selectOnly(tile);
+            if (tileIndex !== -1) {
+              selectionAnchorIndex = tileIndex;
+            }
+            folderClickTimer = null;
+          }, 220);
+          return;
+        }
+
+        selectOnly(tile);
+        if (tileIndex !== -1) {
+          selectionAnchorIndex = tileIndex;
+        }
+      });
+
+      filesList.addEventListener('contextmenu', function(event){
+        if (isReadOnly) {
+          closeItemContextMenu();
+          return;
+        }
+
+        const tile = event.target.closest('.drive-tile');
+        if (!tile) {
+          closeItemContextMenu();
+          return;
+        }
+
+        event.preventDefault();
+
+        const tiles = getSelectableTiles();
+        const tileIndex = tiles.indexOf(tile);
+        if (!tile.classList.contains('selected')) {
+          selectOnly(tile);
+          if (tileIndex !== -1) {
+            selectionAnchorIndex = tileIndex;
+          }
+        }
+
+        if (folderClickTimer) {
+          clearTimeout(folderClickTimer);
           folderClickTimer = null;
-        }, 220);
+        }
+
+        openItemContextMenu(event.clientX, event.clientY);
+      });
+
+      filesList.addEventListener('dragstart', function(event){
+        if (isReadOnly) {
+          event.preventDefault();
+          return;
+        }
+
+        const tile = event.target.closest('.drive-tile');
+        if (!tile) {
+          return;
+        }
+
+        if (!tile.classList.contains('selected')) {
+          const tiles = getSelectableTiles();
+          const tileIndex = tiles.indexOf(tile);
+          selectOnly(tile);
+          if (tileIndex !== -1) {
+            selectionAnchorIndex = tileIndex;
+          }
+        }
+
+        draggedTiles = getSelectedTiles();
+        clearDropTarget();
+        closeItemContextMenu();
+
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', 'nosocial-move');
+        }
+      });
+
+      filesList.addEventListener('dragover', function(event){
+        if (isReadOnly) {
+          clearDropTarget();
+          return;
+        }
+
+        const hasExternalFiles = event.dataTransfer && Array.from(event.dataTransfer.types || []).includes('Files');
+        if (hasExternalFiles && (!event.dataTransfer.types.includes('text/plain') || !event.dataTransfer.getData('text/plain'))) {
+          event.preventDefault();
+          clearDropTarget();
+          if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+          }
+          return;
+        }
+
+        const folderTile = event.target.closest('.drive-tile.folder');
+        if (!folderTile || !canDropOnFolder(folderTile)) {
+          clearDropTarget();
+          return;
+        }
+
+        event.preventDefault();
+        setDropTarget(folderTile);
+
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = 'move';
+        }
+      });
+
+      filesList.addEventListener('dragleave', function(event){
+        if (!currentDropTarget) {
+          return;
+        }
+
+        const relatedTarget = event.relatedTarget;
+        if (relatedTarget && currentDropTarget.contains(relatedTarget)) {
+          return;
+        }
+
+        if (event.target === currentDropTarget || !filesList.contains(relatedTarget)) {
+          clearDropTarget();
+        }
+      });
+
+      filesList.addEventListener('drop', async function(event){
+        if (isReadOnly) {
+          draggedTiles = [];
+          clearDropTarget();
+          return;
+        }
+
+        const droppedFiles = event.dataTransfer && event.dataTransfer.files
+          ? Array.from(event.dataTransfer.files).filter(function(file){
+              return file && file.size >= 0;
+            })
+          : [];
+        if (droppedFiles.length > 0) {
+          event.preventDefault();
+          draggedTiles = [];
+          clearDropTarget();
+          try {
+            await processUploadEntries(droppedFiles);
+          } catch (error) {
+            window.alert(error.message || 'Failed to upload dropped files');
+          }
+          return;
+        }
+
+        const folderTile = event.target.closest('.drive-tile.folder');
+        clearDropTarget();
+
+        if (!folderTile || !canDropOnFolder(folderTile)) {
+          draggedTiles = [];
+          return;
+        }
+
+        event.preventDefault();
+
+        try {
+          const result = await moveDraggedItems(folderTile.dataset.folderPublicId || '');
+          removeMovedTiles(result);
+        } catch (error) {
+          window.alert(error.message || 'Failed to move items');
+        } finally {
+          draggedTiles = [];
+        }
+      });
+
+      document.addEventListener('dragend', function(){
+        clearDropTarget();
+        draggedTiles = [];
+      });
+
+      document.addEventListener('paste', async function(event){
+        if (isReadOnly || isUploading) {
+          return;
+        }
+
+        const target = event.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+
+        const clipboardFiles = event.clipboardData && event.clipboardData.files
+          ? Array.from(event.clipboardData.files).filter(function(file){
+              return file && file.size > 0;
+            })
+          : [];
+        if (clipboardFiles.length === 0) {
+          return;
+        }
+
+        event.preventDefault();
+        try {
+          await processUploadEntries(clipboardFiles);
+        } catch (error) {
+          window.alert(error.message || 'Failed to upload pasted files');
+        }
       });
 
       filesList.addEventListener('dblclick', function(event){
         const folderTile = event.target.closest('.drive-tile.folder');
-        if (!folderTile) {
-          return;
-        }
+        const fileTile = event.target.closest('.drive-tile.file');
 
         if (folderClickTimer) {
           clearTimeout(folderClickTimer);
           folderClickTimer = null;
         }
 
-        openFolder(folderTile);
+        if (folderTile) {
+          openFolder(folderTile);
+          return;
+        }
+
+        if (fileTile) {
+          openFile(fileTile);
+        }
       });
+
+      filesList.addEventListener('mousedown', function(event){
+        if (event.button !== 0 || event.target.closest('.drive-tile')) {
+          return;
+        }
+
+        const listRect = filesList.getBoundingClientRect();
+        dragSelection = {
+          startX: event.clientX,
+          startY: event.clientY,
+          additive: event.ctrlKey || event.metaKey,
+          baseSelectedTiles: new Set(getSelectedTiles()),
+          moved: false
+        };
+
+        if (
+          event.clientX < listRect.left ||
+          event.clientX > listRect.right ||
+          event.clientY < listRect.top ||
+          event.clientY > listRect.bottom
+        ) {
+          dragSelection = null;
+        }
+      });
+
+      document.addEventListener('mousemove', function(event){
+        if (!dragSelection) {
+          return;
+        }
+
+        const deltaX = Math.abs(event.clientX - dragSelection.startX);
+        const deltaY = Math.abs(event.clientY - dragSelection.startY);
+        if (!dragSelection.moved && deltaX < 4 && deltaY < 4) {
+          return;
+        }
+
+        dragSelection.moved = true;
+        const rect = getSelectionRect(
+          dragSelection.startX,
+          dragSelection.startY,
+          event.clientX,
+          event.clientY
+        );
+
+        updateSelectionBox(
+          dragSelection.startX,
+          dragSelection.startY,
+          event.clientX,
+          event.clientY
+        );
+        applyMarqueeSelection(rect, dragSelection.additive);
+      });
+
+      document.addEventListener('mouseup', function(){
+        if (!dragSelection) {
+          return;
+        }
+
+        if (dragSelection.moved) {
+          suppressNextClick = true;
+          const selectedTiles = getSelectedTiles();
+          if (selectedTiles.length > 0) {
+            const tiles = getSelectableTiles();
+            const lastSelectedTile = selectedTiles[selectedTiles.length - 1];
+            selectionAnchorIndex = tiles.indexOf(lastSelectedTile);
+          }
+        }
+
+        dragSelection = null;
+        hideSelectionBox();
+      });
+
+      document.addEventListener('click', function(event){
+        if (itemContextMenu.hidden) {
+          return;
+        }
+
+        if (!event.target.closest('#item-context-menu') && !event.target.closest('.drive-tile')) {
+          closeItemContextMenu();
+        }
+      });
+
+      document.addEventListener('scroll', closeItemContextMenu, true);
+      window.addEventListener('resize', closeItemContextMenu);
+
+      snapshotCurrentFolderItems();
+      setSortMode(getInitialSortMode());
+      setFileView(getInitialFileView());
+      applySearchFilter('');
+      clearSelectedTiles();
+      resetPreview();
+      updateSelectionActions();
+      closeItemContextMenu();
 
       async function createFolder(folderName, currentUrl) {
         const response = await fetch('/app/api/create-folder', {
@@ -536,8 +4641,45 @@
       folderNameInput.addEventListener('input', function(){
         clearErrorBox(errorBox);
       });
+      fileSearchInput.addEventListener('input', function(){
+        applySearchFilter(fileSearchInput.value);
+      });
+      [searchKindFilter, searchDateFromInput, searchDateToInput, searchMinSizeInput, searchMaxSizeInput].forEach(function(input){
+        input.addEventListener('input', function(){
+          applySearchFilter(fileSearchInput.value);
+        });
+        input.addEventListener('change', function(){
+          applySearchFilter(fileSearchInput.value);
+        });
+      });
       uploadFileInput.addEventListener('input', function(){
         clearErrorBox(uploadErrorBox);
+        clearUploadStatus();
+      });
+      uploadFolderInput.addEventListener('input', function(){
+        clearErrorBox(uploadErrorBox);
+        clearUploadStatus();
+      });
+      renameInput.addEventListener('input', function(){
+        clearErrorBox(renameErrorBox);
+      });
+      moveTargetSelect.addEventListener('change', function(){
+        clearErrorBox(moveErrorBox);
+      });
+      sharePublicCheckbox.addEventListener('change', function(){
+        clearErrorBox(shareErrorBox);
+      });
+      shareExpiresAtInput.addEventListener('input', function(){
+        clearErrorBox(shareErrorBox);
+      });
+      sharePasswordInput.addEventListener('input', function(){
+        clearErrorBox(shareErrorBox);
+      });
+      shareClearPasswordCheckbox.addEventListener('change', function(){
+        clearErrorBox(shareErrorBox);
+      });
+      shareUsersInput.addEventListener('input', function(){
+        clearErrorBox(shareErrorBox);
       });
 
       form.addEventListener('submit', async function(event){
@@ -569,16 +4711,129 @@
         }
       });
 
-      uploadForm.addEventListener('submit', function(event){
+      uploadForm.addEventListener('submit', async function(event){
         event.preventDefault();
 
-        if (!uploadFileInput.files || uploadFileInput.files.length === 0) {
-          renderUploadError('File is required');
+        const files = getSelectedUploadEntries();
+
+        if (files.length === 0) {
+          renderUploadError('File or folder is required');
           uploadFileInput.focus();
           return;
         }
 
-        closeUploadModal();
+        closeUploadModal(true);
+
+        try {
+          await processUploadEntries(files);
+        } catch (error) {
+          renderUploadError(error.message || 'Failed to upload file');
+        }
+      });
+
+      renameForm.addEventListener('submit', async function(event){
+        event.preventDefault();
+
+        const newName = renameInput.value.trim();
+        if (!newName) {
+          renderRenameError('Name is required');
+          renameInput.focus();
+          return;
+        }
+
+        clearErrorBox(renameErrorBox);
+        renameSubmitButton.disabled = true;
+        renameSubmitButton.textContent = 'Renaming...';
+
+        try {
+          const result = await renameSelectedItem(newName);
+          const selectedTile = getSingleSelectedTile();
+          if (selectedTile) {
+            if (result.itemType === 'folder' && result.folder) {
+              applyFolderDataToTile(selectedTile, result.folder);
+            }
+            if (result.itemType === 'file' && result.file) {
+              applyFileDataToTile(selectedTile, result.file);
+            }
+          }
+          updateSelectionPreview();
+          closeRenameModal();
+        } catch (error) {
+          renderRenameError(error.message || 'Failed to rename item');
+        } finally {
+          renameSubmitButton.disabled = false;
+          renameSubmitButton.textContent = 'Rename';
+        }
+      });
+
+      moveForm.addEventListener('submit', async function(event){
+        event.preventDefault();
+
+        const destinationPublicId = moveTargetSelect.value;
+        if (!destinationPublicId) {
+          renderMoveError('Destination folder is required');
+          moveTargetSelect.focus();
+          return;
+        }
+
+        clearErrorBox(moveErrorBox);
+        moveSubmitButton.disabled = true;
+        moveSubmitButton.textContent = 'Moving...';
+
+        try {
+          const result = await moveSelectedItems(destinationPublicId);
+          removeMovedTiles(result);
+          closeMoveModal();
+        } catch (error) {
+          renderMoveError(error.message || 'Failed to move items');
+        } finally {
+          moveSubmitButton.disabled = false;
+          moveSubmitButton.textContent = 'Move';
+        }
+      });
+
+      shareForm.addEventListener('submit', async function(event){
+        event.preventDefault();
+
+        if (!shareItemTarget) {
+          shareErrorBox.textContent = 'Select one item';
+          shareErrorBox.hidden = false;
+          return;
+        }
+
+        clearErrorBox(shareErrorBox);
+        shareSubmitButton.disabled = true;
+        shareSubmitButton.textContent = 'Saving...';
+
+        const payload = {
+          public: sharePublicCheckbox.checked,
+          expiresAt: shareExpiresAtInput.value || null,
+          password: sharePasswordInput.value || null,
+          clearPassword: shareClearPasswordCheckbox.checked,
+          allowDownload: shareAllowDownloadCheckbox.checked,
+          sharedUsers: parseShareUsersValue(shareUsersInput.value)
+        };
+
+        try {
+          const result = shareItemTarget.classList.contains('folder')
+            ? await updateSelectedFolderShareSettings(payload)
+            : await updateSelectedFileShareSettings(payload);
+
+          if (isTilePublic(shareItemTarget) && result.publicUrl) {
+            await copyTextToClipboard(
+              shareItemTarget.classList.contains('folder')
+                ? getPublicFolderUrl(shareItemTarget.dataset.folderPublicId || '')
+                : getPublicFileUrl(shareItemTarget.dataset.filePublicId || '')
+            );
+          }
+          closeShareModal();
+        } catch (error) {
+          shareErrorBox.textContent = error.message || 'Failed to update share settings';
+          shareErrorBox.hidden = false;
+        } finally {
+          shareSubmitButton.disabled = false;
+          shareSubmitButton.textContent = 'Save';
+        }
       });
     });
   </script>

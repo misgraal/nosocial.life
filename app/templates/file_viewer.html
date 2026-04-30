@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ file["fileName"] }}{% endblock %}
+
+{% block head %}
+  <style>
+    body{
+      min-height:100dvh;
+    }
+
+    .viewer-shell{
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      min-height:calc(100dvh - 120px);
+      padding:24px;
+    }
+
+    .viewer-header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+
+    .viewer-back{
+      color:var(--muted);
+      text-decoration:none;
+      font-size:0.92rem;
+    }
+
+    .viewer-back:hover{
+      color:var(--text);
+    }
+
+    .viewer-title{
+      margin:6px 0 0;
+      font-size:1.55rem;
+      line-height:1.15;
+      word-break:break-word;
+    }
+
+    .viewer-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:10px;
+      color:var(--muted);
+      font-size:0.9rem;
+    }
+
+    .viewer-chip{
+      padding:7px 12px;
+      border-radius:999px;
+      background:var(--clr-surface-a10);
+      border:1px solid rgba(15,23,42,0.08);
+    }
+
+    .viewer-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .viewer-card{
+      flex:1 1 auto;
+      min-height:0;
+      border:1px solid rgba(15,23,42,0.08);
+      border-radius:20px;
+      background:var(--card);
+      box-shadow:0 18px 40px rgba(15,23,42,0.08);
+      overflow:hidden;
+    }
+
+    .viewer-frame,
+    .viewer-image,
+    .viewer-video{
+      display:block;
+      width:100%;
+      height:min(78dvh, 980px);
+      border:0;
+      background:#111;
+    }
+
+    .viewer-frame{
+      background:#fff;
+    }
+
+    .viewer-image{
+      object-fit:contain;
+      background:linear-gradient(135deg, rgba(15,23,42,0.06), rgba(15,23,42,0.02));
+    }
+
+    .viewer-video{
+      object-fit:contain;
+    }
+
+    .viewer-text{
+      margin:0;
+      padding:22px;
+      overflow:auto;
+      white-space:pre-wrap;
+      word-break:break-word;
+      font:0.92rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .viewer-note{
+      margin:0;
+      padding:14px 18px;
+      border-bottom:1px solid rgba(15,23,42,0.08);
+      color:var(--muted);
+      font-size:0.88rem;
+      background:var(--clr-surface-a10);
+    }
+
+    .viewer-empty{
+      display:grid;
+      place-items:center;
+      min-height:320px;
+      padding:24px;
+      text-align:center;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .spreadsheet-wrap{
+      overflow:auto;
+      max-height:min(78dvh, 980px);
+    }
+
+    .spreadsheet-table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:0.92rem;
+    }
+
+    .spreadsheet-table td{
+      padding:10px 12px;
+      border-bottom:1px solid rgba(15,23,42,0.08);
+      border-right:1px solid rgba(15,23,42,0.06);
+      vertical-align:top;
+      min-width:120px;
+      white-space:nowrap;
+    }
+
+    .spreadsheet-table tr:nth-child(odd){
+      background:rgba(15,23,42,0.025);
+    }
+
+    @media (max-width: 900px){
+      .viewer-shell{
+        padding:16px;
+      }
+
+      .viewer-frame,
+      .viewer-image,
+      .viewer-video{
+        height:68dvh;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block header_actions %}
+  <a class="btn secondary" href="{{ download_url }}">Download</a>
+{% endblock %}
+
+{% block content %}
+  <div class="viewer-shell">
+    <div class="viewer-header">
+      <div>
+        <a class="viewer-back" href="/app/home" onclick="if (window.history.length > 1) { event.preventDefault(); window.history.back(); }">← Back</a>
+        <h2 class="viewer-title">{{ file["fileName"] }}</h2>
+        <div class="viewer-meta">
+          <span class="viewer-chip">{{ file_type_label }}</span>
+          <span class="viewer-chip">{{ file["sizeBytes"] }} bytes</span>
+          <span class="viewer-chip">{{ file["lastModified"] }}</span>
+        </div>
+      </div>
+      <div class="viewer-actions">
+        <a class="btn secondary" href="{{ raw_file_url }}" target="_blank" rel="noopener">Open Raw</a>
+        <a class="btn primary" href="{{ download_url }}">Download</a>
+      </div>
+    </div>
+
+    <div class="viewer-card">
+      {% if view_kind == "pdf" %}
+        <iframe class="viewer-frame" src="{{ raw_file_url }}#view=FitH&zoom=page-fit" title="{{ file['fileName'] }}"></iframe>
+      {% elif view_kind == "image" %}
+        <img class="viewer-image" src="{{ raw_file_url }}" alt="{{ file['fileName'] }}">
+      {% elif view_kind == "video" %}
+        <video class="viewer-video" src="{{ raw_file_url }}" controls preload="metadata"></video>
+      {% elif view_kind == "text" and text_preview %}
+        {% if text_preview.truncated %}
+          <p class="viewer-note">Preview is truncated to keep the page responsive.</p>
+        {% endif %}
+        <pre class="viewer-text">{{ text_preview.content }}</pre>
+      {% elif view_kind == "excel" and excel_preview and excel_preview.supported %}
+        {% if excel_preview.truncated %}
+          <p class="viewer-note">Spreadsheet preview is truncated to the first rows and columns.</p>
+        {% elif excel_preview.sheetName %}
+          <p class="viewer-note">{{ excel_preview.sheetName }}</p>
+        {% endif %}
+        <div class="spreadsheet-wrap">
+          <table class="spreadsheet-table">
+            <tbody>
+              {% for row in excel_preview.rows %}
+                <tr>
+                  {% for cell in row %}
+                    <td>{{ cell }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="viewer-empty">
+          <div>
+            <p>Preview is not available for this file type.</p>
+            <p>You can still open the raw file or download it.</p>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const tabs = Array.from(document.querySelectorAll("[data-tab]"));
   const panels = Array.from(document.querySelectorAll("[data-tab-panel]"));
+  const filters = Array.from(document.querySelectorAll("[data-admin-filter]"));
 
   if (!tabs.length || !panels.length) {
     return;
@@ -29,4 +30,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const initial = tabs.find((tab) => tab.classList.contains("active")) || tabs[0];
   setActiveTab(initial.dataset.tab);
+
+  filters.forEach((input) => {
+    input.addEventListener("input", () => {
+      const tableName = input.dataset.adminFilter;
+      const table = document.querySelector(`[data-admin-table="${tableName}"] tbody`);
+      if (!table) {
+        return;
+      }
+
+      const query = String(input.value || "").trim().toLowerCase();
+      const rows = Array.from(table.querySelectorAll("tr"));
+
+      rows.forEach((row) => {
+        const text = row.textContent.toLowerCase();
+        row.hidden = Boolean(query) && !text.includes(query);
+      });
+    });
+  });
 });
