@@ -47,7 +47,7 @@ services:
     container_name: nosocial-dlna
     restart: unless-stopped
     network_mode: host
-    command: ["minidlnad", "-d", "-f", "/etc/minidlna.conf"]
+    command: ["/usr/sbin/minidlnad", "-d", "-f", "/etc/minidlna.conf"]
     volumes:
       - /mnt/storage:/media/storage:ro
       - ./minidlna.conf:/etc/minidlna.conf:ro
