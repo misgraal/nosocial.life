@@ -42,6 +42,7 @@ async def main(request: Request, tab: str = "users", error: str | None = None, i
             "stats": dashboard.stats,
             "users": dashboard.users,
             "disks": dashboard.disks,
+            "diagnostics": dashboard.diagnostics,
             "audit_logs": dashboard.audit_logs,
             "share_items": dashboard.share_items,
             "inspected_user": dashboard.inspected_user,

@@ -124,6 +124,30 @@
       line-height:1.5;
     }
 
+    .viewer-media-fallback{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      min-height:320px;
+      padding:24px;
+      text-align:center;
+      color:var(--muted);
+      line-height:1.5;
+    }
+
+    .viewer-media-fallback[hidden]{
+      display:none;
+    }
+
+    .viewer-media-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+
     .spreadsheet-wrap{
       overflow:auto;
       max-height:min(78dvh, 980px);
@@ -188,9 +212,23 @@
       {% if view_kind == "pdf" %}
         <iframe class="viewer-frame" src="{{ raw_file_url }}#view=FitH&zoom=page-fit" title="{{ file['fileName'] }}"></iframe>
       {% elif view_kind == "image" %}
-        <img class="viewer-image" src="{{ raw_file_url }}" alt="{{ file['fileName'] }}">
+        <img class="viewer-image" src="{{ image_preview_url or raw_file_url }}" alt="{{ file['fileName'] }}" onerror="this.hidden=true;document.getElementById('viewer-media-fallback').hidden=false;">
+        <div id="viewer-media-fallback" class="viewer-media-fallback" hidden>
+          <div>Image preview could not be generated.</div>
+          <div class="viewer-media-actions">
+            <a class="btn secondary" href="{{ raw_file_url }}" target="_blank" rel="noopener">Open Raw</a>
+            <a class="btn primary" href="{{ download_url }}">Download</a>
+          </div>
+        </div>
       {% elif view_kind == "video" %}
-        <video class="viewer-video" src="{{ raw_file_url }}" controls preload="metadata"></video>
+        <video class="viewer-video" src="{{ raw_file_url }}" controls preload="metadata"{% if thumbnail_url %} poster="{{ thumbnail_url }}"{% endif %} onerror="this.hidden=true;document.getElementById('viewer-media-fallback').hidden=false;"></video>
+        <div id="viewer-media-fallback" class="viewer-media-fallback" hidden>
+          <div>This browser cannot play this video format. Use raw view, download, or DLNA/Jellyfin.</div>
+          <div class="viewer-media-actions">
+            <a class="btn secondary" href="{{ raw_file_url }}" target="_blank" rel="noopener">Open Raw</a>
+            <a class="btn primary" href="{{ download_url }}">Download</a>
+          </div>
+        </div>
       {% elif view_kind == "text" and text_preview %}
         {% if text_preview.truncated %}
           <p class="viewer-note">Preview is truncated to keep the page responsive.</p>

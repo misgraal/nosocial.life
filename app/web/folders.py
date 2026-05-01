@@ -19,7 +19,7 @@ from app.services.folders import (
     update_folder_share_settings,
 )
 from app.db.folders import get_folder_by_public_id
-from config import TEMPLATES_DIR
+from config import COOKIE_SECURE, TEMPLATES_DIR
 
 
 router = APIRouter()
@@ -175,7 +175,14 @@ async def unlockFolder(request: Request, publicID: str, password: str = Form(...
         )
 
     response = RedirectResponse(f"/app/folders/{publicID}", status_code=303)
-    response.set_cookie(get_folder_share_access_cookie_name(publicID), "1", max_age=60 * 60 * 12, httponly=True, samesite="lax")
+    response.set_cookie(
+        get_folder_share_access_cookie_name(publicID),
+        "1",
+        max_age=60 * 60 * 12,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE
+    )
     return response
 
 

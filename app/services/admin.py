@@ -29,7 +29,7 @@ from app.db.app import create_audit_log, get_audit_logs
 from app.db.folders import delete_folder_db, get_all_user_folders
 from app.security.sesions import delete_user_sessions
 from app.services.app import build_folder_path
-from config import DISKS
+from config import COOKIE_SECURE, DISKS, MEDIA_FOLDER_NAME, RUNTIME_DIR, TMP_FOLDER
 
 
 @dataclass
@@ -38,6 +38,7 @@ class AdminDashboardResult:
     stats: dict
     users: list
     disks: list
+    diagnostics: list
     audit_logs: list
     share_items: list
     inspected_user: dict | None
@@ -115,6 +116,72 @@ async def get_disk_stats_async() -> list[dict]:
         })
 
     return stats
+
+
+async def get_system_diagnostics() -> list[dict]:
+    diagnostics = []
+
+    for disk_path in DISKS:
+        disk = Path(disk_path)
+        media_dir = disk / MEDIA_FOLDER_NAME
+        temp_dir = disk / TMP_FOLDER
+        diagnostics.extend([
+            {
+                "name": "Storage path",
+                "status": "OK" if disk.exists() and disk.is_dir() else "Missing",
+                "detail": str(disk),
+            },
+            {
+                "name": "Storage writable",
+                "status": "OK" if disk.exists() and disk.is_dir() and os_access_write(disk) else "Check permissions",
+                "detail": str(disk),
+            },
+            {
+                "name": "DLNA media folder",
+                "status": "OK" if media_dir.exists() and media_dir.is_dir() else "Missing",
+                "detail": str(media_dir),
+            },
+            {
+                "name": "Upload temp folder",
+                "status": "OK" if temp_dir.exists() and temp_dir.is_dir() else "Missing",
+                "detail": str(temp_dir),
+            },
+        ])
+
+    diagnostics.extend([
+        {
+            "name": "Runtime sessions",
+            "status": "OK" if RUNTIME_DIR.exists() and os_access_write(RUNTIME_DIR) else "Check permissions",
+            "detail": str(RUNTIME_DIR),
+        },
+        {
+            "name": "Secure cookies",
+            "status": "Enabled" if COOKIE_SECURE else "Disabled",
+            "detail": "Set NOSOCIAL_COOKIE_SECURE=true behind HTTPS.",
+        },
+        {
+            "name": "DLNA URL",
+            "status": "Configured",
+            "detail": "http://192.168.88.201:8200/rootDesc.xml",
+        },
+        {
+            "name": "Backup command",
+            "status": "Available",
+            "detail": "cd /home/nosocial/app && bash backup.sh",
+        },
+    ])
+    return diagnostics
+
+
+def os_access_write(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        test_path = path / ".nosocial-write-test"
+        test_path.write_text("ok", encoding="utf-8")
+        test_path.unlink(missing_ok=True)
+        return True
+    except OSError:
+        return False
 
 
 async def assert_admin(user_id: int):
@@ -258,6 +325,7 @@ async def get_admin_dashboard(user_id: int, inspect_user_id: int | None = None) 
         stats=stats,
         users=user_rows,
         disks=await get_disk_stats_async(),
+        diagnostics=await get_system_diagnostics(),
         audit_logs=await get_audit_logs(),
         share_items=await get_access_share_items(),
         inspected_user=inspected_user,

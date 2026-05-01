@@ -1,6 +1,8 @@
 import csv
+import hashlib
 import mimetypes
 import shutil
+import subprocess
 import time
 import zipfile
 from datetime import datetime
@@ -38,7 +40,7 @@ from app.services.app import DeleteItemsPayload, UploadChunkPayload
 from app.services.app import normalize_share_expires_at, parse_python_datetime, resolve_share_recipient_users
 from app.services.folders import can_user_access_shared_folder
 from app.security.passwords import hash_password
-from config import DISKS, MEDIA_FOLDER_NAME, tmpFolder
+from config import DISKS, MEDIA_FOLDER_NAME, RUNTIME_DIR, tmpFolder
 
 
 upload_list = []
@@ -183,6 +185,14 @@ def validate_upload_id(upload_id: str):
         raise ValueError("Invalid upload id")
 
 
+def is_platform_compatible_disk_path(disk_path: str) -> bool:
+    try:
+        Path(disk_path)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
 def get_streamed_upload_path(temp_dir: Path) -> Path:
     return temp_dir / "upload.data"
 
@@ -243,11 +253,20 @@ async def get_folder_path_parts(folder_id: int | None) -> list[str]:
     return list(reversed(parts))
 
 
+def is_media_folder_name(folder_name: str) -> bool:
+    return str(folder_name or "").casefold() == MEDIA_FOLDER_NAME.casefold()
+
+
+async def is_media_folder_tree(folder_id: int | None) -> bool:
+    folder_parts = await get_folder_path_parts(folder_id)
+    return len(folder_parts) >= 2 and is_media_folder_name(folder_parts[1])
+
+
 async def get_folder_physical_upload_dir(upload: dict, folder_id: int | None) -> Path:
     upload_disk = Path(upload["uploadDisk"])
     folder_parts = await get_folder_path_parts(folder_id)
 
-    if len(folder_parts) >= 2 and folder_parts[1] == MEDIA_FOLDER_NAME:
+    if len(folder_parts) >= 2 and is_media_folder_name(folder_parts[1]):
         final_dir = upload_disk.joinpath(MEDIA_FOLDER_NAME, *folder_parts[2:])
     else:
         final_dir = upload_disk
@@ -262,6 +281,16 @@ async def is_public_upload_folder(folder_id: int | None) -> bool:
 
     folder = await get_folder_by_id(folder_id)
     return bool(folder and folder.get("public"))
+
+
+async def should_folder_be_public_after_upload(parent_folder_id: int | None, folder_name: str) -> bool:
+    parent_parts = await get_folder_path_parts(parent_folder_id)
+    is_root_child = len(parent_parts) == 1
+    return (
+        await is_public_upload_folder(parent_folder_id)
+        or await is_media_folder_tree(parent_folder_id)
+        or (is_root_child and is_media_folder_name(folder_name))
+    )
 
 
 def assemble_file(temp_dir: Path, final_path: Path, total_chunks: int) -> int:
@@ -311,6 +340,50 @@ async def cancel_upload(upload_id: str) -> dict:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     return {"status": "cancelled", "uploadId": upload_id}
+
+
+async def get_upload_status(upload_id: str) -> dict:
+    validate_upload_id(upload_id)
+    temp_root_name = Path(tmpFolder).name
+    candidate_disks = {
+        disk_path
+        for disk_path in [*DISKS, *(await get_enabled_upload_disks())]
+        if is_platform_compatible_disk_path(disk_path)
+    }
+
+    matching_upload = get_existing_upload(upload_id)
+    if matching_upload:
+        candidate_disks.add(matching_upload["uploadDisk"])
+
+    completed_chunks = set()
+    uploaded_bytes = 0
+    exists = False
+
+    for disk_path in candidate_disks:
+        temp_dir = Path(disk_path) / temp_root_name / "chunks" / upload_id
+        if not temp_dir.exists():
+            continue
+
+        exists = True
+        for marker_path in temp_dir.glob("*.done"):
+            try:
+                completed_chunks.add(int(marker_path.stem))
+            except ValueError:
+                continue
+
+        streamed_upload_path = get_streamed_upload_path(temp_dir)
+        if streamed_upload_path.exists():
+            try:
+                uploaded_bytes = max(uploaded_bytes, streamed_upload_path.stat().st_size)
+            except OSError:
+                pass
+
+    return {
+        "uploadId": upload_id,
+        "exists": exists,
+        "completedChunks": sorted(completed_chunks),
+        "uploadedBytes": uploaded_bytes,
+    }
 
 
 async def cleanup_stale_upload_chunks():
@@ -507,14 +580,14 @@ async def ensure_nested_upload_folders(user_id: int, base_folder_id: int, relati
     for folder_name in get_relative_folder_parts(relative_path):
         existing_folder = await get_user_folder_by_name_in_parent(user_id, current_folder_id, folder_name)
         if existing_folder:
-            if await is_public_upload_folder(current_folder_id):
+            if await should_folder_be_public_after_upload(current_folder_id, folder_name):
                 await update_folder_public_db(user_id, existing_folder["folderID"], True)
             current_folder_id = existing_folder["folderID"]
             continue
 
         created_folder = await create_folder_db(folder_name, user_id, current_folder_id)
         folder_row = await get_folder_id_by_public_id(created_folder["publicID"])
-        if await is_public_upload_folder(current_folder_id):
+        if await should_folder_be_public_after_upload(current_folder_id, folder_name):
             await update_folder_public_db(user_id, folder_row["folderID"], True)
         current_folder_id = folder_row["folderID"]
 
@@ -586,7 +659,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
         bytes_written,
         str(final_path)
     )
-    if await is_public_upload_folder(folder_id):
+    if await is_public_upload_folder(folder_id) or await is_media_folder_tree(folder_id):
         created_file = await get_user_file_by_public_id(user_id, file["publicID"])
         file = await update_file_public_db(user_id, created_file["fileID"], True)
 
@@ -706,10 +779,55 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
 
 
 IMAGE_FILE_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif", ".heic"
+    ".3fr", ".ari", ".arw", ".avif", ".bay", ".bmp", ".cap", ".cr2", ".cr3",
+    ".crw", ".dcr", ".dng", ".erf", ".fff", ".gif", ".heic", ".heif", ".ico",
+    ".iiq", ".j2c", ".j2k", ".jfif", ".jp2", ".jpe", ".jpeg", ".jpg", ".jxl",
+    ".k25", ".kdc", ".mef", ".mos", ".mrw", ".nef", ".nrw", ".orf", ".pef",
+    ".png", ".ppm", ".psd", ".raf", ".raw", ".rw2", ".rwl", ".sr2", ".srf",
+    ".srw", ".svg", ".tga", ".tif", ".tiff", ".webp", ".x3f"
 }
 VIDEO_FILE_EXTENSIONS = {
-    ".mp4", ".webm", ".mov", ".m4v", ".ogv"
+    ".3g2", ".3gp", ".asf", ".avi", ".divx", ".dv", ".f4v", ".flv", ".m2t",
+    ".m2ts", ".m4v", ".mkv", ".mod", ".mov", ".mp4", ".mpeg", ".mpg", ".mts",
+    ".mxf", ".ogm", ".ogv", ".rm", ".rmvb", ".ts", ".vob", ".webm", ".wmv"
+}
+MEDIA_TYPE_OVERRIDES = {
+    ".3g2": "video/3gpp2",
+    ".3gp": "video/3gpp",
+    ".avi": "video/x-msvideo",
+    ".avif": "image/avif",
+    ".flv": "video/x-flv",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".jxl": "image/jxl",
+    ".m2t": "video/mp2t",
+    ".m2ts": "video/mp2t",
+    ".m4v": "video/mp4",
+    ".mkv": "video/x-matroska",
+    ".mov": "video/quicktime",
+    ".mts": "video/mp2t",
+    ".ogm": "video/ogg",
+    ".ogv": "video/ogg",
+    ".rm": "application/vnd.rn-realmedia",
+    ".rmvb": "application/vnd.rn-realmedia-vbr",
+    ".svg": "image/svg+xml",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".ts": "video/mp2t",
+    ".vob": "video/dvd",
+    ".webm": "video/webm",
+    ".wmv": "video/x-ms-wmv",
+}
+BROWSER_NATIVE_IMAGE_MEDIA_TYPES = {
+    "image/avif",
+    "image/bmp",
+    "image/gif",
+    "image/jpeg",
+    "image/png",
+    "image/svg+xml",
+    "image/vnd.microsoft.icon",
+    "image/webp",
+    "image/x-icon",
 }
 TEXT_FILE_EXTENSIONS = {
     ".txt", ".md", ".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".scss",
@@ -726,6 +844,10 @@ def get_file_extension(file_name: str) -> str:
 
 
 def get_file_media_type(file_name: str) -> str:
+    extension = get_file_extension(file_name)
+    if extension in MEDIA_TYPE_OVERRIDES:
+        return MEDIA_TYPE_OVERRIDES[extension]
+
     media_type, _ = mimetypes.guess_type(file_name)
     return media_type or "application/octet-stream"
 
@@ -764,6 +886,73 @@ def get_file_view_type_label(file_name: str) -> str:
     if extension:
         return f"{extension[1:].upper()} file"
     return "File"
+
+
+def can_generate_media_thumbnail(file_name: str) -> bool:
+    return get_file_view_kind(file_name) in {"image", "video"}
+
+
+def is_browser_native_image(file_name: str) -> bool:
+    return get_file_media_type(file_name).lower() in BROWSER_NATIVE_IMAGE_MEDIA_TYPES
+
+
+def get_media_thumbnail_cache_path(file_path: Path, file_name: str) -> Path:
+    stat = file_path.stat()
+    cache_key = "|".join([
+        str(file_path),
+        file_name or file_path.name,
+        str(stat.st_size),
+        str(int(stat.st_mtime))
+    ])
+    digest = hashlib.sha256(cache_key.encode("utf-8", "ignore")).hexdigest()
+    return RUNTIME_DIR / "previews" / f"{digest}.jpg"
+
+
+def generate_media_thumbnail(file_path: Path, file_name: str) -> Path:
+    if not can_generate_media_thumbnail(file_name):
+        raise ValueError("Preview image is not available for this file type")
+
+    cache_path = get_media_thumbnail_cache_path(file_path, file_name)
+    if cache_path.exists() and cache_path.stat().st_size > 0:
+        return cache_path
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = cache_path.with_suffix(".tmp.jpg")
+    view_kind = get_file_view_kind(file_name)
+    seek_options = [["-ss", "00:00:02"], []] if view_kind == "video" else [[]]
+    last_error = "Preview generation failed"
+
+    for seek_option in seek_options:
+        temp_path.unlink(missing_ok=True)
+        command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *seek_option]
+        command.extend([
+            "-i", str(file_path),
+            "-frames:v", "1",
+            "-vf", "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease,format=yuvj420p",
+            "-q:v", "3",
+            str(temp_path)
+        ])
+
+        try:
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=30)
+        except FileNotFoundError as error:
+            raise ValueError("ffmpeg is not installed") from error
+        except subprocess.TimeoutExpired as error:
+            temp_path.unlink(missing_ok=True)
+            raise ValueError("Preview generation timed out") from error
+        except subprocess.CalledProcessError as error:
+            detail = error.stderr.decode("utf-8", "ignore").strip()
+            last_error = detail or "Preview generation failed"
+            continue
+
+        if temp_path.exists() and temp_path.stat().st_size > 0:
+            break
+    else:
+        temp_path.unlink(missing_ok=True)
+        raise ValueError(last_error)
+
+    temp_path.replace(cache_path)
+    return cache_path
 
 
 def read_text_file_preview(file_path: Path, max_chars: int = 500000) -> dict:

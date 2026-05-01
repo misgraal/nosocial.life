@@ -4,7 +4,8 @@ from fastapi.responses import RedirectResponse
 from app.db.app import create_audit_log
 from app.services.login import login
 from app.security.sesions import create_session
-from config import TEMPLATES_DIR
+from app.security.rate_limit import check_rate_limit, clear_rate_limit
+from config import COOKIE_SECURE, TEMPLATES_DIR
 
 
 router = APIRouter()
@@ -19,8 +20,22 @@ async def main(
     password: str = Form(...),
     confirm_password: str | None = Form(None),
 ):
+    rate_limit_key = f"login:{request.client.host if request.client else 'unknown'}:{username.strip().casefold()}"
+    try:
+        check_rate_limit(rate_limit_key)
+    except ValueError as error:
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "error": str(error)
+            },
+            status_code=429
+        )
+
     result = await login(username, password)
     if result.success == True:
+        clear_rate_limit(rate_limit_key)
         sid = create_session(result.user_id)
         await create_audit_log(result.user_id, "auth.login", "user", str(result.user_id), {"username": username})
         resp = RedirectResponse("/app/home", status_code=303)
@@ -29,7 +44,7 @@ async def main(
             sid,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=COOKIE_SECURE,
             max_age=60*60*24*7
         )
         resp.set_cookie(
@@ -38,7 +53,7 @@ async def main(
             max_age=60*60*24*7,
             httponly=True,
             samesite="lax",
-            secure=False,
+            secure=COOKIE_SECURE,
         )
         return resp
     else: 

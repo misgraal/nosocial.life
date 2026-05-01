@@ -132,6 +132,84 @@
       box-shadow:0 0 0 4px rgba(230,30,76,0.12);
     }
 
+    .upload-picker{
+      position:relative;
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-height:68px;
+      padding:14px;
+      border:1px solid var(--app-border);
+      border-radius:14px;
+      background:var(--app-panel-muted);
+      cursor:pointer;
+      transition:border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    }
+
+    .upload-picker:hover{
+      border-color:var(--accent);
+      background:var(--clr-surface-a20);
+    }
+
+    .upload-picker:focus-within{
+      border-color:var(--accent);
+      box-shadow:0 0 0 4px rgba(230,30,76,0.12);
+    }
+
+    .upload-picker input[type="file"]{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      opacity:0;
+      cursor:pointer;
+    }
+
+    .upload-picker-button{
+      position:relative;
+      z-index:1;
+      flex:0 0 auto;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:40px;
+      padding:0 14px;
+      border-radius:10px;
+      border:1px solid var(--app-border);
+      background:var(--card);
+      color:var(--text);
+      font-weight:700;
+      font-size:0.95rem;
+      box-shadow:0 8px 20px rgba(2,6,23,0.08);
+    }
+
+    .upload-picker-text{
+      position:relative;
+      z-index:1;
+      min-width:0;
+      color:var(--text);
+      font-size:0.95rem;
+      font-weight:650;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    @media (max-width: 560px){
+      .upload-picker{
+        align-items:stretch;
+        flex-direction:column;
+      }
+
+      .upload-picker-button{
+        width:100%;
+      }
+
+      .upload-picker-text{
+        white-space:normal;
+      }
+    }
+
     .modal-actions{
       display:flex;
       justify-content:flex-end;
@@ -943,6 +1021,34 @@
       object-fit:contain;
     }
 
+    .preview-media-fallback,
+    .file-viewer-media-fallback{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      padding:18px;
+      border:1px dashed var(--app-border);
+      border-radius:12px;
+      text-align:center;
+      color:var(--muted);
+      background:var(--clr-surface-a10);
+    }
+
+    .preview-media-fallback[hidden],
+    .file-viewer-media-fallback[hidden]{
+      display:none;
+    }
+
+    .preview-media-actions,
+    .file-viewer-media-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+
     .preview-text{
       margin:0;
       max-height:360px;
@@ -1087,6 +1193,11 @@
 
     .file-viewer-video{
       object-fit:contain;
+    }
+
+    .file-viewer-media-fallback{
+      height:100%;
+      min-height:260px;
     }
 
     .file-viewer-text{
@@ -1479,7 +1590,6 @@
   {% set user_root = request.query_params.get('username') or request.cookies.get('username') or 'My Drive' %}
   {% set is_shared_mode = shared_mode if shared_mode is defined else false %}
   {% set current_search_scope = search_scope if search_scope is defined else 'own' %}
-  {% set show_search_filters_flag = show_search_filters if show_search_filters is defined else true %}
   <div class="drive-shell" data-read-only="{{ 'true' if read_only else 'false' }}" data-search-scope="{{ current_search_scope }}" data-shared-mode="{{ 'true' if is_shared_mode else 'false' }}">
     <aside class="drive-sidebar">
       {% if request.cookies.get('session_id') %}
@@ -1544,26 +1654,12 @@
         </div>
       </div>
 
-      <div class="drive-actions drive-filters"{% if not show_search_filters_flag %} hidden{% endif %}>
-        <select id="search-kind-filter" aria-label="Search type">
-          <option value="all">All types</option>
-          <option value="folders">Folders</option>
-          <option value="files">Files</option>
-          <option value="images">Images</option>
-          <option value="videos">Videos</option>
-          <option value="docs">Docs</option>
-        </select>
-        <input id="search-date-from" type="date" aria-label="Modified from">
-        <input id="search-date-to" type="date" aria-label="Modified to">
-        <input id="search-min-size" type="number" min="0" step="1" placeholder="Min size MB" aria-label="Minimum size MB">
-        <input id="search-max-size" type="number" min="0" step="1" placeholder="Max size MB" aria-label="Maximum size MB">
-      </div>
-
       <div class="drive-actions">
         <div class="drive-cta">
           <button id="delete-selected" class="btn secondary" type="button" disabled>Delete</button>
           <button id="new-folder" class="btn secondary" type="button">New folder</button>
-          <button id="upload-btn" class="btn primary" type="button">Upload</button>
+          <button id="upload-btn" class="btn primary" type="button">Upload file</button>
+          <button id="upload-folder-btn" class="btn secondary" type="button">Upload folder</button>
         </div>
       </div>
 
@@ -1714,11 +1810,13 @@
 
       <form id="upload-form" class="modal-form" data-upload-url="/app/api/upload">
         <div class="modal-field">
-          <input id="upload-file-input" name="upload_file" type="file" multiple required>
+          <label class="upload-picker" for="upload-file-input">
+            <span class="upload-picker-button">Choose files</span>
+            <span id="upload-file-label" class="upload-picker-text">No files selected</span>
+            <input id="upload-file-input" name="upload_file" type="file" multiple required>
+          </label>
         </div>
-        <div class="modal-field">
-          <input id="upload-folder-input" name="upload_folder" type="file" webkitdirectory directory multiple>
-        </div>
+        <input id="upload-folder-input" name="upload_folder" type="file" webkitdirectory directory multiple hidden>
 
         <p id="upload-error" class="modal-error" hidden></p>
         <p id="upload-status" class="modal-note" hidden></p>
@@ -1912,12 +2010,8 @@
       const newFolderButton = document.getElementById('new-folder');
       const deleteSelectedButton = document.getElementById('delete-selected');
       const uploadButton = document.getElementById('upload-btn');
+      const uploadFolderButton = document.getElementById('upload-folder-btn');
       const fileSearchInput = document.getElementById('file-search');
-      const searchKindFilter = document.getElementById('search-kind-filter');
-      const searchDateFromInput = document.getElementById('search-date-from');
-      const searchDateToInput = document.getElementById('search-date-to');
-      const searchMinSizeInput = document.getElementById('search-min-size');
-      const searchMaxSizeInput = document.getElementById('search-max-size');
       const sortSelect = document.getElementById('sort-select');
       const listSortButtons = Array.from(document.querySelectorAll('.files-list-header-button[data-sort-key]'));
       const gridViewToggle = document.getElementById('grid-view-toggle');
@@ -1947,6 +2041,7 @@
       const shareForm = document.getElementById('share-form');
       const folderNameInput = document.getElementById('folder-name-input');
       const uploadFileInput = document.getElementById('upload-file-input');
+      const uploadFileLabel = document.getElementById('upload-file-label');
       const uploadFolderInput = document.getElementById('upload-folder-input');
       const renameInput = document.getElementById('rename-input');
       const moveTargetSelect = document.getElementById('move-target-select');
@@ -2037,7 +2132,7 @@
         type: ['type-asc', 'type-desc']
       };
 
-      if(!driveShell || !newFolderButton || !deleteSelectedButton || !uploadButton || !fileSearchInput || !searchKindFilter || !searchDateFromInput || !searchDateToInput || !searchMinSizeInput || !searchMaxSizeInput || !sortSelect || !gridViewToggle || !listViewToggle || !navBackButton || !navForwardButton || !modal || !uploadModal || !warningModal || !renameModal || !moveModal || !shareModal || !fileViewerModal || !form || !uploadForm || !renameForm || !moveForm || !shareForm || !folderNameInput || !uploadFileInput || !uploadFolderInput || !renameInput || !moveTargetSelect || !sharePublicCheckbox || !shareExpiresAtInput || !sharePasswordInput || !shareClearPasswordCheckbox || !shareUsersInput || !shareAllowDownloadCheckbox || !shareFileDownloadField || !itemContextMenu || !contextDownloadAction || !contextVisibilityAction || !contextCopyPublicLinkAction || !contextShareSettingsAction || !contextRenameAction || !contextMoveAction || !contextDeleteAction || !closeWarningButton || !closeRenameButton || !closeMoveButton || !closeShareButton || !closeFileViewerButton || !warningModalTitle || !warningModalMessage || !warningCancelButton || !warningConfirmButton || !uploadTitle || !renameSubmitButton || !moveSubmitButton || !shareSubmitButton || !shareErrorBox || !searchEmptyState || !previewStage || !fileViewerStage || !fileViewerTitle || !fileViewerMeta || !fileViewerRawLink || !fileViewerDownloadLink || !previewAccess){
+      if(!driveShell || !newFolderButton || !deleteSelectedButton || !uploadButton || !uploadFolderButton || !fileSearchInput || !sortSelect || !gridViewToggle || !listViewToggle || !navBackButton || !navForwardButton || !modal || !uploadModal || !warningModal || !renameModal || !moveModal || !shareModal || !fileViewerModal || !form || !uploadForm || !renameForm || !moveForm || !shareForm || !folderNameInput || !uploadFileInput || !uploadFileLabel || !uploadFolderInput || !renameInput || !moveTargetSelect || !sharePublicCheckbox || !shareExpiresAtInput || !sharePasswordInput || !shareClearPasswordCheckbox || !shareUsersInput || !shareAllowDownloadCheckbox || !shareFileDownloadField || !itemContextMenu || !contextDownloadAction || !contextVisibilityAction || !contextCopyPublicLinkAction || !contextShareSettingsAction || !contextRenameAction || !contextMoveAction || !contextDeleteAction || !closeWarningButton || !closeRenameButton || !closeMoveButton || !closeShareButton || !closeFileViewerButton || !warningModalTitle || !warningModalMessage || !warningCancelButton || !warningConfirmButton || !uploadTitle || !renameSubmitButton || !moveSubmitButton || !shareSubmitButton || !shareErrorBox || !searchEmptyState || !previewStage || !fileViewerStage || !fileViewerTitle || !fileViewerMeta || !fileViewerRawLink || !fileViewerDownloadLink || !previewAccess){
         return;
       }
 
@@ -2198,6 +2293,10 @@
           uploadButton.disabled = uploading;
         }
 
+        if (uploadFolderButton) {
+          uploadFolderButton.disabled = uploading;
+        }
+
         if (closeUploadButton) {
           closeUploadButton.disabled = uploading;
         }
@@ -2220,6 +2319,37 @@
         return `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       }
 
+      function getResumeStorageKey(file, options) {
+        const relativePath = file.webkitRelativePath || file.name;
+        return [
+          'nosocial-upload',
+          options.folderPublicId || 'root',
+          relativePath,
+          file.size,
+          file.lastModified || 0
+        ].join(':');
+      }
+
+      function getStoredUploadId(storageKey) {
+        try {
+          return window.localStorage.getItem(storageKey);
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function setStoredUploadId(storageKey, uploadId) {
+        try {
+          window.localStorage.setItem(storageKey, uploadId);
+        } catch (error) {}
+      }
+
+      function clearStoredUploadId(storageKey) {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch (error) {}
+      }
+
       function getUploadContext() {
         const pathParts = window.location.pathname.split('/').filter(Boolean);
         const folderIndex = pathParts.indexOf('folders');
@@ -2232,14 +2362,27 @@
       }
 
       function getSelectedUploadEntries() {
-        const fileEntries = uploadFileInput && uploadFileInput.files
+        return uploadFileInput && uploadFileInput.files
           ? Array.from(uploadFileInput.files)
           : [];
-        const folderEntries = uploadFolderInput && uploadFolderInput.files
-          ? Array.from(uploadFolderInput.files)
+      }
+
+      function updateUploadFileLabel() {
+        const files = uploadFileInput && uploadFileInput.files
+          ? Array.from(uploadFileInput.files)
           : [];
 
-        return [...fileEntries, ...folderEntries];
+        if (files.length === 0) {
+          uploadFileLabel.textContent = 'No files selected';
+          return;
+        }
+
+        if (files.length === 1) {
+          uploadFileLabel.textContent = files[0].name;
+          return;
+        }
+
+        uploadFileLabel.textContent = `${files.length} files selected`;
       }
 
       async function parseUploadResponse(response) {
@@ -2298,6 +2441,23 @@
         }).catch(function(){
           return null;
         });
+      }
+
+      async function getUploadStatus(uploadId) {
+        if (!uploadId) {
+          return {exists: false, completedChunks: []};
+        }
+
+        try {
+          const response = await fetch(`/app/api/upload/status?uploadId=${encodeURIComponent(uploadId)}`);
+          const data = await response.json();
+          if (!response.ok) {
+            return {exists: false, completedChunks: []};
+          }
+          return data;
+        } catch (error) {
+          return {exists: false, completedChunks: []};
+        }
       }
 
       function cancelActiveUpload() {
@@ -2372,55 +2532,75 @@
       async function uploadFileInChunks(file, options, progressState) {
         const uploadUrl = uploadForm.dataset.uploadUrl || '/app/api/upload';
         const totalChunks = Math.max(1, Math.ceil(file.size / uploadChunkSize));
-        const uploadId = createUploadId();
         const relativePath = file.webkitRelativePath || '';
+        const resumeStorageKey = getResumeStorageKey(file, options);
+        const storedUploadId = getStoredUploadId(resumeStorageKey);
+        let uploadId = storedUploadId || createUploadId();
+        setStoredUploadId(resumeStorageKey, uploadId);
+        let uploadStatus = await getUploadStatus(uploadId);
+        if (storedUploadId && !uploadStatus.exists) {
+          uploadId = createUploadId();
+          setStoredUploadId(resumeStorageKey, uploadId);
+          uploadStatus = {exists: false, completedChunks: []};
+        }
+        const completedChunkIndexes = new Set(uploadStatus.completedChunks || []);
         let completedFile = null;
         activeUploadIds.add(uploadId);
 
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
-          if (uploadCancelled) {
-            throw createUploadCancelledError();
+        try {
+          for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+            if (uploadCancelled) {
+              throw createUploadCancelledError();
+            }
+
+            const start = chunkIndex * uploadChunkSize;
+            const end = Math.min(start + uploadChunkSize, file.size);
+            const chunk = file.slice(start, end);
+            const uploadTitle = `Uploading ${file.name}`;
+
+            if (completedChunkIndexes.has(chunkIndex)) {
+              progressState.completedBytes += chunk.size;
+              renderUploadProgress(progressState, uploadTitle, progressState.completedBytes);
+              continue;
+            }
+
+            const formData = new FormData();
+
+            formData.append('chunk', chunk, file.name);
+            formData.append('uploadId', uploadId);
+            formData.append('fileName', file.name);
+            formData.append('mimeType', file.type || 'application/octet-stream');
+            formData.append('fileSize', String(file.size));
+            formData.append('chunkIndex', String(chunkIndex));
+            formData.append('totalChunks', String(totalChunks));
+            formData.append('chunkSize', String(chunk.size));
+            formData.append('chunkStart', String(start));
+            formData.append('isLastChunk', String(chunkIndex === totalChunks - 1));
+            formData.append('currentUrl', options.currentUrl);
+            formData.append('relativePath', relativePath);
+
+            if (options.folderPublicId) {
+              formData.append('folderPublicId', options.folderPublicId);
+            }
+
+            const chunkStartBytes = progressState.completedBytes;
+            renderUploadProgress(progressState, uploadTitle, chunkStartBytes);
+
+            const payload = await uploadChunkRequest(uploadUrl, formData, function(loadedBytes){
+              renderUploadProgress(progressState, uploadTitle, chunkStartBytes + Math.min(loadedBytes, chunk.size));
+            });
+
+            if (payload.file) {
+              completedFile = payload.file;
+            }
+
+            progressState.completedBytes += chunk.size;
+            renderUploadProgress(progressState, uploadTitle, progressState.completedBytes);
           }
-
-          const start = chunkIndex * uploadChunkSize;
-          const end = Math.min(start + uploadChunkSize, file.size);
-          const chunk = file.slice(start, end);
-          const formData = new FormData();
-
-          formData.append('chunk', chunk, file.name);
-          formData.append('uploadId', uploadId);
-          formData.append('fileName', file.name);
-          formData.append('mimeType', file.type || 'application/octet-stream');
-          formData.append('fileSize', String(file.size));
-          formData.append('chunkIndex', String(chunkIndex));
-          formData.append('totalChunks', String(totalChunks));
-          formData.append('chunkSize', String(chunk.size));
-          formData.append('chunkStart', String(start));
-          formData.append('isLastChunk', String(chunkIndex === totalChunks - 1));
-          formData.append('currentUrl', options.currentUrl);
-          formData.append('relativePath', relativePath);
-
-          if (options.folderPublicId) {
-            formData.append('folderPublicId', options.folderPublicId);
-          }
-
-          const chunkStartBytes = progressState.completedBytes;
-          const uploadTitle = `Uploading ${file.name}`;
-          renderUploadProgress(progressState, uploadTitle, chunkStartBytes);
-
-          const payload = await uploadChunkRequest(uploadUrl, formData, function(loadedBytes){
-            renderUploadProgress(progressState, uploadTitle, chunkStartBytes + Math.min(loadedBytes, chunk.size));
-          });
-
-          if (payload.file) {
-            completedFile = payload.file;
-          }
-
-          progressState.completedBytes += chunk.size;
-          renderUploadProgress(progressState, uploadTitle, progressState.completedBytes);
+        } finally {
+          activeUploadIds.delete(uploadId);
         }
-
-        activeUploadIds.delete(uploadId);
+        clearStoredUploadId(resumeStorageKey);
         return completedFile;
       }
 
@@ -2550,6 +2730,7 @@
         clearUploadStatus();
         uploadModal.hidden = true;
         uploadForm.reset();
+        updateUploadFileLabel();
       }
 
       function openRenameModal() {
@@ -2892,6 +3073,14 @@
         openMoveModal();
       });
       uploadButton.addEventListener('click', openUploadModal);
+      uploadFolderButton.addEventListener('click', function(){
+        if (isUploading) {
+          return;
+        }
+
+        uploadFolderInput.value = '';
+        uploadFolderInput.click();
+      });
       closeButton.addEventListener('click', closeModal);
       closeUploadButton.addEventListener('click', closeUploadModal);
       closeWarningButton.addEventListener('click', closeWarningModal);
@@ -2916,6 +3105,7 @@
       if(uploadCancelToastButton){
         uploadCancelToastButton.addEventListener('click', cancelActiveUpload);
       }
+      uploadFileInput.addEventListener('change', updateUploadFileLabel);
 
       modal.addEventListener('click', function(event){
         if(event.target === modal){
@@ -3112,6 +3302,10 @@
         return `/app/api/files/${filePublicId}/content`;
       }
 
+      function getFileDownloadUrl(filePublicId) {
+        return `/app/api/files/${filePublicId}/download`;
+      }
+
       function getPdfEmbedUrl(rawFileUrl) {
         if (!rawFileUrl) {
           return rawFileUrl;
@@ -3200,6 +3394,97 @@
         setPreviewStageMarkup(`${noteMarkup}<div class="preview-sheet"><table><tbody>${rowsMarkup}</tbody></table></div>`);
       }
 
+      function getMediaFallbackMarkup(className, rawFileUrl, downloadUrl, message) {
+        return `
+          <div class="${className}" data-media-fallback hidden>
+            <div>${escapeHtml(message)}</div>
+            <div class="${className === 'preview-media-fallback' ? 'preview-media-actions' : 'file-viewer-media-actions'}">
+              <a class="btn secondary" href="${escapeHtml(rawFileUrl)}" target="_blank" rel="noopener">Open raw</a>
+              <a class="btn primary" href="${escapeHtml(downloadUrl)}">Download</a>
+            </div>
+          </div>
+        `;
+      }
+
+      function showMediaFallback(stageElement) {
+        const fallback = stageElement.querySelector('[data-media-fallback]');
+        if (fallback) {
+          fallback.hidden = false;
+        }
+      }
+
+      function attachMediaFallback(stageElement) {
+        const mediaElements = stageElement.querySelectorAll('[data-media-preview]');
+        mediaElements.forEach(function(mediaElement){
+          mediaElement.addEventListener('error', function(){
+            mediaElement.hidden = true;
+            showMediaFallback(stageElement);
+          });
+        });
+      }
+
+      function isBrowserNativeImage(mediaType) {
+        return [
+          'image/avif',
+          'image/bmp',
+          'image/gif',
+          'image/jpeg',
+          'image/png',
+          'image/svg+xml',
+          'image/vnd.microsoft.icon',
+          'image/webp',
+          'image/x-icon'
+        ].includes(String(mediaType || '').toLowerCase());
+      }
+
+      function renderPreviewImage(previewData, rawFileUrl, filePublicId) {
+        const imageUrl = isBrowserNativeImage(previewData && previewData.mediaType)
+          ? rawFileUrl
+          : ((previewData && previewData.thumbnailUrl) || rawFileUrl);
+        const downloadUrl = getFileDownloadUrl(filePublicId);
+        setPreviewStageMarkup(`
+          <img class="preview-embed-image" data-media-preview src="${escapeHtml(imageUrl)}" alt="Image preview">
+          ${getMediaFallbackMarkup('preview-media-fallback', rawFileUrl, downloadUrl, 'Image preview could not be generated.')}
+        `);
+        attachMediaFallback(previewStage);
+      }
+
+      function renderPreviewVideo(previewData, rawFileUrl, filePublicId) {
+        const poster = previewData && previewData.thumbnailUrl
+          ? ` poster="${escapeHtml(previewData.thumbnailUrl)}"`
+          : '';
+        const downloadUrl = getFileDownloadUrl(filePublicId);
+        setPreviewStageMarkup(`
+          <video class="preview-embed-video" data-media-preview src="${escapeHtml(rawFileUrl)}" controls preload="metadata"${poster}></video>
+          ${getMediaFallbackMarkup('preview-media-fallback', rawFileUrl, downloadUrl, 'This browser cannot play this video format. Use raw view, download, or DLNA/Jellyfin.')}
+        `);
+        attachMediaFallback(previewStage);
+      }
+
+      function renderViewerImage(previewData, rawFileUrl, filePublicId) {
+        const imageUrl = isBrowserNativeImage(previewData && previewData.mediaType)
+          ? rawFileUrl
+          : ((previewData && previewData.thumbnailUrl) || rawFileUrl);
+        const downloadUrl = getFileDownloadUrl(filePublicId);
+        setFileViewerStageMarkup(`
+          <img class="file-viewer-image" data-media-preview src="${escapeHtml(imageUrl)}" alt="Image preview">
+          ${getMediaFallbackMarkup('file-viewer-media-fallback', rawFileUrl, downloadUrl, 'Image preview could not be generated.')}
+        `);
+        attachMediaFallback(fileViewerStage);
+      }
+
+      function renderViewerVideo(previewData, rawFileUrl, filePublicId) {
+        const poster = previewData && previewData.thumbnailUrl
+          ? ` poster="${escapeHtml(previewData.thumbnailUrl)}"`
+          : '';
+        const downloadUrl = getFileDownloadUrl(filePublicId);
+        setFileViewerStageMarkup(`
+          <video class="file-viewer-video" data-media-preview src="${escapeHtml(rawFileUrl)}" controls preload="metadata"${poster}></video>
+          ${getMediaFallbackMarkup('file-viewer-media-fallback', rawFileUrl, downloadUrl, 'This browser cannot play this video format. Use raw view, download, or DLNA/Jellyfin.')}
+        `);
+        attachMediaFallback(fileViewerStage);
+      }
+
       function renderFilePreviewContent(previewData, filePublicId) {
         const rawFileUrl = (previewData && previewData.rawFileUrl) || getFileRawContentUrl(filePublicId);
         const viewKind = previewData && previewData.viewKind;
@@ -3210,12 +3495,12 @@
         }
 
         if (viewKind === 'image') {
-          setPreviewStageMarkup(`<img class="preview-embed-image" src="${escapeHtml(rawFileUrl)}" alt="Image preview">`);
+          renderPreviewImage(previewData, rawFileUrl, filePublicId);
           return;
         }
 
         if (viewKind === 'video') {
-          setPreviewStageMarkup(`<video class="preview-embed-video" src="${escapeHtml(rawFileUrl)}" controls preload="metadata"></video>`);
+          renderPreviewVideo(previewData, rawFileUrl, filePublicId);
           return;
         }
 
@@ -3255,12 +3540,12 @@
         }
 
         if (viewKind === 'image') {
-          setFileViewerStageMarkup(`<img class="file-viewer-image" src="${escapeHtml(rawFileUrl)}" alt="Image preview">`);
+          renderViewerImage(previewData, rawFileUrl, filePublicId);
           return;
         }
 
         if (viewKind === 'video') {
-          setFileViewerStageMarkup(`<video class="file-viewer-video" src="${escapeHtml(rawFileUrl)}" controls preload="metadata"></video>`);
+          renderViewerVideo(previewData, rawFileUrl, filePublicId);
           return;
         }
 
@@ -3324,7 +3609,7 @@
           <span class="file-viewer-modal-chip">${escapeHtml(access)}</span>
         `;
         fileViewerRawLink.setAttribute('href', getFileRawContentUrl(filePublicId));
-        fileViewerDownloadLink.setAttribute('href', `/app/api/files/${filePublicId}/download`);
+        fileViewerDownloadLink.setAttribute('href', getFileDownloadUrl(filePublicId));
         fileViewerModal.hidden = false;
         renderFileViewerLoading();
         closeFileViewerButton.focus();
@@ -3675,15 +3960,12 @@
       }
 
       function getActiveSearchFilters() {
-        const minSizeMb = Number(searchMinSizeInput.value || 0);
-        const maxSizeMb = Number(searchMaxSizeInput.value || 0);
-
         return {
-          kind: searchKindFilter.value || 'all',
-          dateFrom: searchDateFromInput.value || '',
-          dateTo: searchDateToInput.value || '',
-          minSize: minSizeMb > 0 ? Math.round(minSizeMb * 1024 * 1024) : null,
-          maxSize: maxSizeMb > 0 ? Math.round(maxSizeMb * 1024 * 1024) : null
+          kind: 'all',
+          dateFrom: '',
+          dateTo: '',
+          minSize: null,
+          maxSize: null
         };
       }
 
@@ -5194,14 +5476,6 @@
       fileSearchInput.addEventListener('input', function(){
         applySearchFilter(fileSearchInput.value);
       });
-      [searchKindFilter, searchDateFromInput, searchDateToInput, searchMinSizeInput, searchMaxSizeInput].forEach(function(input){
-        input.addEventListener('input', function(){
-          applySearchFilter(fileSearchInput.value);
-        });
-        input.addEventListener('change', function(){
-          applySearchFilter(fileSearchInput.value);
-        });
-      });
       uploadFileInput.addEventListener('input', function(){
         clearErrorBox(uploadErrorBox);
         clearUploadStatus();
@@ -5278,6 +5552,24 @@
           await processUploadEntries(files);
         } catch (error) {
           renderUploadError(error.message || 'Failed to upload file');
+        }
+      });
+
+      uploadFolderInput.addEventListener('change', async function(){
+        const files = uploadFolderInput.files
+          ? Array.from(uploadFolderInput.files)
+          : [];
+
+        if (files.length === 0) {
+          return;
+        }
+
+        try {
+          await processUploadEntries(files);
+        } catch (error) {
+          window.alert(error.message || 'Failed to upload folder');
+        } finally {
+          uploadFolderInput.value = '';
         }
       });
 

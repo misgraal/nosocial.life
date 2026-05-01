@@ -1,4 +1,3 @@
-import mimetypes
 import unicodedata
 from pathlib import Path
 from urllib.parse import quote
@@ -6,6 +5,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 
 from app.db.files import get_file_by_public_id
 from app.security.sesions import get_user_id
@@ -13,20 +13,25 @@ from app.security.passwords import verify_password
 from app.services.app import UpdateFileShareSettingsPayload, UpdateFileVisibilityPayload, UploadChunkPayload
 from app.services.files import (
     cancel_upload,
+    can_generate_media_thumbnail,
+    generate_media_thumbnail,
+    get_upload_status,
     get_file_share_settings,
     get_share_access_cookie_name,
     get_accessible_file,
     get_excel_file_preview,
+    get_file_media_type,
     get_file_view_kind,
     get_file_view_type_label,
     handle_chunk_upload,
+    is_browser_native_image,
     is_public_file_accessible,
     is_share_password_required,
     read_text_file_preview,
     set_file_visibility,
     update_file_share_settings,
 )
-from config import TEMPLATES_DIR
+from config import COOKIE_SECURE, TEMPLATES_DIR
 
 
 router = APIRouter()
@@ -43,6 +48,18 @@ def build_content_disposition(disposition: str, filename: str) -> str:
     )
     encoded_name = quote(filename or "file", safe="")
     return f'{disposition}; filename="{fallback_name}"; filename*=UTF-8\'\'{encoded_name}'
+
+
+def build_thumbnail_url(file_public_id: str, file_path: Path, file_name: str) -> str | None:
+    if not can_generate_media_thumbnail(file_name):
+        return None
+
+    try:
+        stat = file_path.stat()
+    except OSError:
+        return f"/app/api/files/{file_public_id}/thumbnail"
+
+    return f"/app/api/files/{file_public_id}/thumbnail?v={stat.st_size}-{int(stat.st_mtime)}"
 
 
 def has_valid_file_share_cookie(request: Request, file: dict) -> bool:
@@ -104,6 +121,9 @@ async def openFile(request: Request, publicID: str):
         if not excel_preview.get("supported"):
             view_kind = "unsupported"
 
+    thumbnail_url = build_thumbnail_url(publicID, file_path, file["fileName"])
+    image_preview_url = f"/app/api/files/{publicID}/content" if is_browser_native_image(file["fileName"]) else thumbnail_url
+
     return templates.TemplateResponse(
         "file_viewer.html",
         {
@@ -112,6 +132,8 @@ async def openFile(request: Request, publicID: str):
             "view_kind": view_kind,
             "file_type_label": get_file_view_type_label(file["fileName"]),
             "raw_file_url": f"/app/api/files/{publicID}/content",
+            "thumbnail_url": thumbnail_url,
+            "image_preview_url": image_preview_url,
             "download_url": f"/app/api/files/{publicID}/download",
             "text_preview": text_preview,
             "excel_preview": excel_preview
@@ -145,7 +167,14 @@ async def unlockFile(request: Request, publicID: str, password: str = Form(...))
         )
 
     response = RedirectResponse(f"/app/files/{publicID}", status_code=303)
-    response.set_cookie(get_share_access_cookie_name(publicID), "1", max_age=60 * 60 * 12, httponly=True, samesite="lax")
+    response.set_cookie(
+        get_share_access_cookie_name(publicID),
+        "1",
+        max_age=60 * 60 * 12,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE
+    )
     return response
 
 
@@ -164,12 +193,42 @@ async def getFileContent(request: Request, file_public_id: str):
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File is missing on disk")
 
-    media_type, _ = mimetypes.guess_type(file["fileName"])
     return FileResponse(
         path=str(file_path),
-        media_type=media_type or "application/octet-stream",
+        media_type=get_file_media_type(file["fileName"]),
         headers={
             "Content-Disposition": build_content_disposition("inline", file["fileName"])
+        }
+    )
+
+
+@router.get("/app/api/files/{file_public_id}/thumbnail")
+async def getFileThumbnail(request: Request, file_public_id: str):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    private_access_file = await get_accessible_file(user_id, file_public_id) if user_id else None
+    file = private_access_file
+    if not file:
+        file = await get_file_by_public_id(file_public_id)
+    if not file or not (private_access_file or can_access_file_share(request, user_id, file)):
+        raise HTTPException(status_code=404, detail="File was not found")
+
+    file_path = Path(file["serverPath"])
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File is missing on disk")
+    if not can_generate_media_thumbnail(file["fileName"]):
+        raise HTTPException(status_code=400, detail="Preview image is not available for this file type")
+
+    try:
+        thumbnail_path = await run_in_threadpool(generate_media_thumbnail, file_path, file["fileName"])
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    return FileResponse(
+        path=str(thumbnail_path),
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "private, max-age=86400"
         }
     )
 
@@ -193,8 +252,12 @@ async def getFilePreview(request: Request, file_public_id: str):
     response = {
         "viewKind": view_kind,
         "fileTypeLabel": get_file_view_type_label(file["fileName"]),
+        "mediaType": get_file_media_type(file["fileName"]),
         "rawFileUrl": f"/app/api/files/{file_public_id}/content"
     }
+    thumbnail_url = build_thumbnail_url(file_public_id, file_path, file["fileName"])
+    if thumbnail_url:
+        response["thumbnailUrl"] = thumbnail_url
 
     if view_kind == "text":
         try:
@@ -274,6 +337,19 @@ async def cancelUpload(request: Request):
 
     try:
         return await cancel_upload(upload_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/app/api/upload/status")
+async def getUploadStatus(request: Request, uploadId: str):
+    sid = request.cookies.get("session_id")
+    user_id = get_user_id(sid)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        return await get_upload_status(uploadId)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 

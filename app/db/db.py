@@ -48,6 +48,8 @@ async def lifespan(app: FastAPI):
     ensure_storage_directories()
     await init_pool()
     await init_schema()
+    from app.services.files import cleanup_stale_upload_chunks
+    await cleanup_stale_upload_chunks()
     try:
         yield
     finally:

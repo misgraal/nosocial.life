@@ -4,6 +4,7 @@ from fastapi.responses import RedirectResponse
 from app.db.app import create_audit_log
 from app.db.login import get_user_id
 from app.services.register import register
+from app.security.rate_limit import check_rate_limit, clear_rate_limit
 from config import TEMPLATES_DIR
 
 
@@ -19,8 +20,22 @@ async def main(
     password: str = Form(...),
     confirm_password: str | None = Form(None),
 ):
+    rate_limit_key = f"register:{request.client.host if request.client else 'unknown'}"
+    try:
+        check_rate_limit(rate_limit_key)
+    except ValueError as error:
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "error": str(error)
+            },
+            status_code=429
+        )
+
     result = await register(username, password, confirm_password)
     if result.success == True:
+        clear_rate_limit(rate_limit_key)
         user_id = await get_user_id(username)
         await create_audit_log(user_id, "auth.register", "user", str(user_id), {"username": username})
         return RedirectResponse("/login")

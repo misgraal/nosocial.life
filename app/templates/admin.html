@@ -796,6 +796,25 @@
                 </div>
               {% endfor %}
             </div>
+
+            <div class="panel-head">
+              <div class="panel-title">Diagnostics</div>
+              <div class="panel-meta">{{ diagnostics|length }} check(s)</div>
+            </div>
+            <div class="disk-grid">
+              {% for diagnostic in diagnostics %}
+                <div class="disk-card">
+                  <div class="disk-card-title">
+                    <strong>{{ diagnostic.name }}</strong>
+                    <span>{{ diagnostic.status }}</span>
+                  </div>
+                  <div class="disk-metric">
+                    <span>Detail</span>
+                    <span>{{ diagnostic.detail }}</span>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
 

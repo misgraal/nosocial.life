@@ -56,6 +56,7 @@ jobs:
           port: 4555
           script: |
             cd /home/nosocial/app
+            mkdir -p /mnt/storage /mnt/storage/Movies backups
             if [ -d minidlna.conf ]; then
               rm -rf minidlna.conf
             fi
@@ -67,7 +68,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 4555
-          source: "docker_server/docker-compose.yml,docker_server/minidlna.conf"
+          source: "docker_server/docker-compose.yml,docker_server/minidlna.conf,docker_server/backup.sh,docker_server/optimize_videos.sh"
           target: /home/nosocial/app
           strip_components: 1
 
@@ -81,5 +82,7 @@ jobs:
           script: |
             cd /home/nosocial/app
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker compose config >/dev/null
             docker compose pull app dlna
             docker compose up -d app dlna
+            docker image prune -f

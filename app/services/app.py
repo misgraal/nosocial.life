@@ -5,20 +5,25 @@ from pathlib import Path
 from app.db.admin import get_users_by_usernames
 from app.db.app import create_audit_log
 from app.db.files import (
+    get_folders_child_files,
     get_user_file_by_name_in_folder,
     get_user_file_by_public_id,
     search_user_files_by_name,
     update_file_folder_db,
     update_file_name_db,
+    update_file_public_db,
 )
 from app.db.folders import (
     get_all_user_folders,
+    get_folders_child_folders,
     get_user_folder_by_name_in_parent,
     get_user_folder_by_public_id,
     search_user_folders_by_name,
     update_folder_name_db,
     update_folder_parent_db,
+    update_folder_public_db,
 )
+from config import MEDIA_FOLDER_NAME
 
 @dataclass
 class StartUpResult:
@@ -210,6 +215,41 @@ def build_folder_path(folder_id: int, folders_by_id: dict[int, dict]) -> str:
     return " / ".join(reversed(parts))
 
 
+def is_media_folder_name(folder_name: str) -> bool:
+    return str(folder_name or "").casefold() == MEDIA_FOLDER_NAME.casefold()
+
+
+def get_folder_path_parts_from_tree(folder_id: int | None, folders_by_id: dict[int, dict]) -> list[str]:
+    if folder_id is None:
+        return []
+
+    parts = []
+    current_id = folder_id
+    while current_id is not None and current_id in folders_by_id:
+        folder = folders_by_id[current_id]
+        parts.append(folder["folderName"])
+        current_id = folder["parentFolderID"]
+
+    return list(reversed(parts))
+
+
+def is_media_folder_tree(folder_id: int | None, folders_by_id: dict[int, dict]) -> bool:
+    folder_parts = get_folder_path_parts_from_tree(folder_id, folders_by_id)
+    return len(folder_parts) >= 2 and is_media_folder_name(folder_parts[1])
+
+
+async def make_folder_tree_public(user_id: int, folder_id: int):
+    await update_folder_public_db(user_id, folder_id, True)
+
+    for file in await get_folders_child_files(folder_id):
+        detailed_file = await get_user_file_by_public_id(user_id, file["publicID"])
+        if detailed_file:
+            await update_file_public_db(user_id, detailed_file["fileID"], True)
+
+    for child_folder in await get_folders_child_folders(folder_id):
+        await make_folder_tree_public(user_id, child_folder["folderID"])
+
+
 def normalize_share_expires_at(expires_at: str | None) -> datetime | None:
     normalized_value = (expires_at or "").strip()
     if not normalized_value:
@@ -392,12 +432,22 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
             continue
 
         await update_folder_parent_db(user_id, folder["folderID"], destination_folder["folderID"])
+        folders_by_id[folder["folderID"]] = {
+            **folder,
+            "parentFolderID": destination_folder["folderID"],
+        }
+        if is_media_folder_tree(folder["folderID"], folders_by_id):
+            await make_folder_tree_public(user_id, folder["folderID"])
+
         await create_audit_log(
             user_id,
             "folder.moved",
             "folder",
             folder_public_id,
-            {"destinationPublicID": destination_folder["publicID"]}
+            {
+                "destinationPublicID": destination_folder["publicID"],
+                "autoPublic": is_media_folder_tree(folder["folderID"], folders_by_id)
+            }
         )
         moved_folder_public_ids.append(folder_public_id)
 
@@ -419,12 +469,18 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
             continue
 
         await update_file_folder_db(user_id, file["fileID"], destination_folder["folderID"])
+        if is_media_folder_tree(destination_folder["folderID"], folders_by_id):
+            await update_file_public_db(user_id, file["fileID"], True)
+
         await create_audit_log(
             user_id,
             "file.moved",
             "file",
             file_public_id,
-            {"destinationPublicID": destination_folder["publicID"]}
+            {
+                "destinationPublicID": destination_folder["publicID"],
+                "autoPublic": is_media_folder_tree(destination_folder["folderID"], folders_by_id)
+            }
         )
         moved_file_public_ids.append(file_public_id)
 

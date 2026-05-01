@@ -51,3 +51,6 @@ DISKS = _split_storage_dirs(os.getenv("NOSOCIAL_STORAGE_DIRS", "")) or _default_
 TMP_FOLDER = os.getenv("NOSOCIAL_TMP_FOLDER", "temp")
 tmpFolder = TMP_FOLDER
 MEDIA_FOLDER_NAME = os.getenv("NOSOCIAL_MEDIA_FOLDER", "Movies")
+COOKIE_SECURE = os.getenv("NOSOCIAL_COOKIE_SECURE", "false").strip().lower() in {"1", "true", "yes", "on"}
+LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv("NOSOCIAL_LOGIN_RATE_LIMIT_ATTEMPTS", "8"))
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("NOSOCIAL_LOGIN_RATE_LIMIT_WINDOW_SECONDS", "300"))
