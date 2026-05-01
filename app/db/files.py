@@ -20,6 +20,34 @@ async def get_folders_child_files(folderID):
     )
 
 
+async def get_public_media_files(media_dirs: list[str]):
+    if not media_dirs:
+        return []
+
+    clauses = []
+    args = []
+    for media_dir in media_dirs:
+        normalized_dir = media_dir.rstrip("/\\")
+        clauses.append("(serverPath=%s or serverPath like %s or serverPath like %s)")
+        args.extend([
+            normalized_dir,
+            f"{normalized_dir}/%",
+            f"{normalized_dir}\\%"
+        ])
+
+    where_clause = " or ".join(clauses)
+    return await fetch_all(
+        f"""
+        select {FILE_SUMMARY_FIELDS}
+        from files
+        where public=true
+          and ({where_clause})
+        order by fileName asc, lastModified desc
+        """,
+        tuple(args)
+    )
+
+
 async def get_folders_child_files_for_delete(folderID):
     return await fetch_all(
         "select fileID, publicID, serverPath from files where folderID=%s",

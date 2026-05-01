@@ -38,6 +38,20 @@ async def get_users_roots_child_folders(id: int):
     )
 
 
+async def get_folders_by_public_id(publicID):
+    return await fetch_all(
+        f"select {FOLDER_DETAIL_FIELDS} from folders where publicID=%s order by folderID asc",
+        (publicID,)
+    )
+
+
+async def get_folders_by_name(folderName):
+    return await fetch_all(
+        f"select {FOLDER_DETAIL_FIELDS} from folders where lower(folderName)=lower(%s) order by folderID asc",
+        (folderName,)
+    )
+
+
 async def create_folder_db(folderName, userID, parentFolderID):
     publicID = generateRandomHash()
     await execute(
@@ -50,8 +64,8 @@ async def create_folder_db(folderName, userID, parentFolderID):
     )
 
 
-async def create_public_folder_db(folderName, userID, parentFolderID):
-    publicID = generateRandomHash()
+async def create_public_folder_db(folderName, userID, parentFolderID, publicID=None):
+    publicID = publicID or generateRandomHash()
     await execute(
         """
         insert into folders (
@@ -68,6 +82,10 @@ async def create_public_folder_db(folderName, userID, parentFolderID):
 
 async def get_folder_id_by_public_id(publicID):
     return await fetch_one("select folderID from folders where publicID=%s", (publicID,))
+
+
+async def get_user_folder_id_by_public_id(userID, publicID):
+    return await fetch_one("select folderID from folders where userID=%s and publicID=%s", (userID, publicID,))
 
 
 async def get_user_folder_by_public_id(userID, publicID):
@@ -152,12 +170,70 @@ async def get_folders_names_in_folder(userID, folderID):
 
 
 async def get_user_folder_by_name_in_parent(userID, parentFolderID, folderName, excludeFolderID=None):
-    query = "select folderID, publicID, public, folderName from folders where userID=%s and parentFolderID <=> %s and folderName=%s"
+    query = "select folderID, userID, publicID, public, folderName from folders where userID=%s and parentFolderID <=> %s and folderName=%s"
     args = [userID, parentFolderID, folderName]
     if excludeFolderID is not None:
         query += " and folderID!=%s"
         args.append(excludeFolderID)
     return await fetch_one(query, tuple(args))
+
+
+async def get_folder_by_name_in_parent(parentFolderID, folderName, excludeFolderID=None):
+    query = "select folderID, userID, publicID, public, folderName from folders where parentFolderID <=> %s and folderName=%s"
+    args = [parentFolderID, folderName]
+    if excludeFolderID is not None:
+        query += " and folderID!=%s"
+        args.append(excludeFolderID)
+    return await fetch_one(query, tuple(args))
+
+
+async def update_folder_public_id_db(userID, folderID, publicID):
+    await execute(
+        "update folders set publicID=%s, lastModified=CURRENT_TIMESTAMP where userID=%s and folderID=%s",
+        (publicID, userID, folderID,)
+    )
+
+
+async def update_folder_identity_db(folderID, folderName, publicID, isPublic):
+    await execute(
+        """
+        update folders
+        set folderName=%s,
+            publicID=%s,
+            public=%s,
+            publicExpiresAt=null,
+            publicPasswordHash=null,
+            lastModified=CURRENT_TIMESTAMP
+        where folderID=%s
+        """,
+        (folderName, publicID, isPublic, folderID,)
+    )
+    return await fetch_one(
+        f"select {FOLDER_DETAIL_FIELDS} from folders where folderID=%s",
+        (folderID,)
+    )
+
+
+async def move_folder_files_to_folder(sourceFolderID, targetFolderID):
+    return await execute(
+        "update files set folderID=%s where folderID=%s",
+        (targetFolderID, sourceFolderID,)
+    )
+
+
+async def move_child_folders_to_folder(sourceFolderID, targetFolderID):
+    return await execute(
+        "update folders set parentFolderID=%s where parentFolderID=%s",
+        (targetFolderID, sourceFolderID,)
+    )
+
+
+async def delete_folder_by_id(folderID):
+    return await execute("delete from folders where folderID=%s", (folderID,))
+    return await fetch_one(
+        f"select folderID, {FOLDER_SUMMARY_FIELDS} from folders where userID=%s and folderID=%s",
+        (userID, folderID,)
+    )
 
 
 async def get_folders_child_folders(folderID):

@@ -15,6 +15,7 @@ from app.db.files import (
 )
 from app.db.folders import (
     get_all_user_folders,
+    get_folder_by_public_id,
     get_folders_child_folders,
     get_user_folder_by_name_in_parent,
     get_user_folder_by_public_id,
@@ -23,7 +24,7 @@ from app.db.folders import (
     update_folder_parent_db,
     update_folder_public_db,
 )
-from config import MEDIA_FOLDER_NAME
+from config import MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID
 
 @dataclass
 class StartUpResult:
@@ -288,6 +289,9 @@ async def rename_item(user_id: int, payload: RenameItemPayload) -> dict:
         raise ValueError("Only one item can be renamed at a time")
 
     if payload.folder_public_id:
+        if payload.folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
+            raise ValueError("Shared Movies folder cannot be renamed")
+
         folder = await get_user_folder_by_public_id(user_id, payload.folder_public_id)
         if not folder:
             raise ValueError("Folder was not found")
@@ -394,6 +398,17 @@ def is_folder_descendant(destination_folder_id: int, folder_id: int, folders_by_
 
 async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
     folders = await get_all_user_folders(user_id)
+    media_folder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
+    if media_folder and all(folder["folderID"] != media_folder["folderID"] for folder in folders):
+        root_folder = next((folder for folder in folders if folder["parentFolderID"] is None), None)
+        folders.append({
+            "folderID": media_folder["folderID"],
+            "publicID": media_folder["publicID"],
+            "public": media_folder["public"],
+            "publicExpiresAt": media_folder["publicExpiresAt"],
+            "folderName": media_folder["folderName"],
+            "parentFolderID": root_folder["folderID"] if root_folder else media_folder["parentFolderID"]
+        })
     folders_by_public_id = {folder["publicID"]: folder for folder in folders}
     folders_by_id = {folder["folderID"]: folder for folder in folders}
 
@@ -409,6 +424,9 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
     moved_file_public_ids = []
 
     for folder_public_id in payload.folder_public_ids:
+        if folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
+            raise ValueError("Shared Movies folder cannot be moved")
+
         folder = await get_user_folder_by_public_id(user_id, folder_public_id)
         if not folder:
             continue

@@ -2,15 +2,24 @@ from datetime import datetime
 
 from app.db.app import get_user_username_by_id
 from app.db.app import create_audit_log
-from app.db.files import get_folders_child_files, get_shared_files_for_user, get_users_roots_child_files
+from pathlib import Path
+
+from app.db.files import (
+    get_folders_child_files,
+    get_shared_files_for_user,
+    get_users_roots_child_files,
+)
 from app.db.folders import (
     add_root_folder,
     create_folder_db,
     create_public_folder_db,
+    delete_folder_by_id,
     get_all_user_folders,
     get_folder_by_id,
     get_folder_by_public_id,
     get_folder_id_by_public_id,
+    get_folders_by_name,
+    get_folders_by_public_id,
     get_folders_child_folders,
     get_folders_names_in_folder,
     get_folder_shared_users,
@@ -22,11 +31,16 @@ from app.db.folders import (
     update_folder_share_settings_db,
     update_folder_public_db,
     get_user_folder_by_id,
+    get_user_folder_id_by_public_id,
     get_user_folder_by_public_id,
     get_users_root_folder,
     get_users_roots_child_folders,
+    move_child_folders_to_folder,
+    move_folder_files_to_folder,
+    update_folder_identity_db,
+    update_folder_public_id_db,
 )
-from config import MEDIA_FOLDER_NAME
+from config import DISKS, MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID
 from app.security.passwords import hash_password
 from app.services.app import (
     StartUpResult,
@@ -41,21 +55,15 @@ from app.services.app import (
 
 
 async def home(user_id) -> StartUpResult:
-    username = await get_user_username_by_id(user_id)
-
-    rootFolder = await get_users_root_folder(user_id)
-    if not rootFolder:
-        await add_root_folder(user_id, username)
-        rootFolder = await get_users_root_folder(user_id)
+    root_folder = await ensure_root_folder(user_id)
+    media_folder = await ensure_media_folder(user_id, root_folder["folderID"])
 
     inRootFolders = await get_users_roots_child_folders(user_id)
     inRootFiles = await get_users_roots_child_files(user_id)
     all_folders = await get_all_user_folders(user_id)
 
-    root_folder = rootFolder[0]
-    await ensure_media_folder(user_id, root_folder["folderID"])
-    inRootFolders = await get_users_roots_child_folders(user_id)
-    all_folders = await get_all_user_folders(user_id)
+    inRootFolders = add_media_folder_to_root_listing(inRootFolders, media_folder)
+    all_folders = add_media_folder_to_user_tree(all_folders, media_folder, root_folder["folderID"])
     breadcrumbs = [{
         "label": root_folder["folderName"],
         "url": "/app/home",
@@ -66,23 +74,117 @@ async def home(user_id) -> StartUpResult:
     return StartUpResult(inRootFolders, inRootFiles, breadcrumbs, folder_tree)
 
 
-async def ensure_media_folder(user_id: int, root_folder_id: int) -> dict:
-    folder = await get_user_folder_by_name_in_parent(user_id, root_folder_id, MEDIA_FOLDER_NAME)
-    if folder:
-        if not folder.get("public"):
-            await update_folder_public_db(user_id, folder["folderID"], True)
-        existing_folder = await get_user_folder_by_id(user_id, folder["folderID"])
-        return existing_folder
+async def ensure_root_folder(user_id: int) -> dict:
+    root_folders = await get_users_root_folder(user_id)
+    if root_folders:
+        return root_folders[0]
 
-    created_folder = await create_public_folder_db(MEDIA_FOLDER_NAME, user_id, root_folder_id)
+    username = await get_user_username_by_id(user_id)
+    await add_root_folder(user_id, username)
+    return (await get_users_root_folder(user_id))[0]
+
+
+async def ensure_media_folder(user_id: int, root_folder_id: int) -> dict:
+    return await ensure_shared_media_folder(user_id, root_folder_id)
+
+
+async def ensure_shared_media_folder(user_id: int, root_folder_id: int) -> dict:
+    candidates = await get_folders_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
+    name_matches = await get_folders_by_name(MEDIA_FOLDER_NAME)
+    candidates_by_id = {folder["folderID"]: folder for folder in candidates}
+    for folder in name_matches:
+        candidates_by_id.setdefault(folder["folderID"], folder)
+
+    if candidates_by_id:
+        canonical = sorted(candidates_by_id.values(), key=lambda folder: folder["folderID"])[0]
+        canonical = await update_folder_identity_db(
+            canonical["folderID"],
+            MEDIA_FOLDER_NAME,
+            MEDIA_FOLDER_PUBLIC_ID,
+            True
+        )
+        for duplicate in sorted(candidates_by_id.values(), key=lambda folder: folder["folderID"]):
+            if duplicate["folderID"] == canonical["folderID"]:
+                continue
+            await move_folder_files_to_folder(duplicate["folderID"], canonical["folderID"])
+            await move_child_folders_to_folder(duplicate["folderID"], canonical["folderID"])
+            await delete_folder_by_id(duplicate["folderID"])
+        return canonical
+
+    created_folder = await create_public_folder_db(
+        MEDIA_FOLDER_NAME,
+        user_id,
+        root_folder_id,
+        MEDIA_FOLDER_PUBLIC_ID
+    )
+    created_folder_detail = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
     await create_audit_log(
         user_id,
         "folder.created",
         "folder",
-        created_folder["publicID"],
-        {"folderName": MEDIA_FOLDER_NAME, "parentFolderID": root_folder_id, "public": True}
+        MEDIA_FOLDER_PUBLIC_ID,
+        {"folderName": MEDIA_FOLDER_NAME, "parentFolderID": root_folder_id, "public": True, "shared": True}
     )
-    return created_folder
+    return created_folder_detail or created_folder
+
+
+def media_folder_summary(folder: dict) -> dict:
+    return {
+        "publicID": MEDIA_FOLDER_PUBLIC_ID,
+        "public": True,
+        "publicExpiresAt": None,
+        "folderName": MEDIA_FOLDER_NAME,
+        "lastModified": folder.get("lastModified")
+    }
+
+
+def add_media_folder_to_root_listing(folders: list[dict], media_folder: dict) -> list[dict]:
+    regular_folders = [
+        folder for folder in folders
+        if folder.get("publicID") != MEDIA_FOLDER_PUBLIC_ID
+        and str(folder.get("folderName") or "").casefold() != MEDIA_FOLDER_NAME.casefold()
+    ]
+    return [media_folder_summary(media_folder), *regular_folders]
+
+
+def add_media_folder_to_user_tree(folders: list[dict], media_folder: dict, root_folder_id: int) -> list[dict]:
+    tree_folders = [
+        folder for folder in folders
+        if folder.get("folderID") != media_folder["folderID"]
+        and folder.get("publicID") != MEDIA_FOLDER_PUBLIC_ID
+    ]
+    tree_folders.append({
+        "folderID": media_folder["folderID"],
+        "publicID": MEDIA_FOLDER_PUBLIC_ID,
+        "public": True,
+        "publicExpiresAt": None,
+        "folderName": MEDIA_FOLDER_NAME,
+        "parentFolderID": root_folder_id
+    })
+    return tree_folders
+
+
+async def get_folder_path_parts(folder: dict) -> list[str]:
+    parts = []
+    current_folder = folder
+
+    while current_folder:
+        parts.append(current_folder["folderName"])
+        parent_folder_id = current_folder["parentFolderID"]
+        if parent_folder_id is None:
+            break
+        current_folder = await get_folder_by_id(parent_folder_id)
+
+    return list(reversed(parts))
+
+
+async def is_media_folder(folder: dict) -> bool:
+    folder_parts = await get_folder_path_parts(folder)
+    return len(folder_parts) == 2 and folder_parts[1] == MEDIA_FOLDER_NAME
+
+
+def get_media_dirs() -> list[str]:
+    return [str(Path(disk_path) / MEDIA_FOLDER_NAME) for disk_path in DISKS]
 
 
 async def check_dublicate(userID, parentFolderID, newFolderName):
@@ -98,8 +200,11 @@ async def create_folder(folderName, userID, url: str):
     if parentPublicID == "home":
         parentFolder = await get_users_root_folder(userID)
         parentFolderID = parentFolder[0]["folderID"]
+    elif parentPublicID == MEDIA_FOLDER_PUBLIC_ID:
+        parentFolder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
+        parentFolderID = parentFolder["folderID"]
     else:
-        parentFolder = await get_folder_id_by_public_id(parentPublicID)
+        parentFolder = await get_user_folder_id_by_public_id(userID, parentPublicID)
         parentFolderID = parentFolder["folderID"]
 
     if await check_dublicate(userID, parentFolderID, folderName) == 1:
@@ -129,6 +234,21 @@ async def checkRoot(folderID) -> bool:
 
 
 async def build_breadcrumbs(user_id: int, folder: dict) -> list[dict]:
+    if folder["publicID"] == MEDIA_FOLDER_PUBLIC_ID:
+        root_folder = await ensure_root_folder(user_id)
+        return [
+            {
+                "label": root_folder["folderName"],
+                "url": "/app/home",
+                "current": False
+            },
+            {
+                "label": MEDIA_FOLDER_NAME,
+                "url": f"/app/folders/{MEDIA_FOLDER_PUBLIC_ID}",
+                "current": True
+            }
+        ]
+
     ancestors = []
     current_folder = folder
 
@@ -153,7 +273,11 @@ async def build_breadcrumbs(user_id: int, folder: dict) -> list[dict]:
 
 
 async def getFoldersContent(user_id: int, publicID: str) -> folderContent:
-    folder = await get_user_folder_by_public_id(user_id, publicID)
+    if publicID == MEDIA_FOLDER_PUBLIC_ID:
+        root_folder = await ensure_root_folder(user_id)
+        folder = await ensure_media_folder(user_id, root_folder["folderID"])
+    else:
+        folder = await get_user_folder_by_public_id(user_id, publicID)
     if not folder:
         raise ValueError("Folder was not found")
 
@@ -165,6 +289,9 @@ async def getFoldersContent(user_id: int, publicID: str) -> folderContent:
     childFiles = await get_folders_child_files(folder["folderID"])
     breadcrumbs = await build_breadcrumbs(user_id, folder)
     all_folders = await get_all_user_folders(user_id)
+    if folder["publicID"] == MEDIA_FOLDER_PUBLIC_ID:
+        root_folder = await ensure_root_folder(user_id)
+        all_folders = add_media_folder_to_user_tree(all_folders, folder, root_folder["folderID"])
     folder_tree = build_folder_tree_nodes(all_folders, folder["folderID"])
 
     return folderContent(childFolders, childFiles, breadcrumbs, folder_tree)
@@ -342,16 +469,15 @@ async def get_shared_folder_content(user_id: int, publicID: str) -> folderConten
 
 
 async def get_move_targets(user_id: int) -> dict:
-    folders = await get_all_user_folders(user_id)
-    if not folders:
-        username = await get_user_username_by_id(user_id)
-        await add_root_folder(user_id, username)
-        folders = await get_all_user_folders(user_id)
+    root_folder = await ensure_root_folder(user_id)
+    media_folder = await ensure_media_folder(user_id, root_folder["folderID"])
+    folders = add_media_folder_to_user_tree(
+        await get_all_user_folders(user_id),
+        media_folder,
+        root_folder["folderID"]
+    )
 
     folders_by_id = {folder["folderID"]: folder for folder in folders}
-    root_folder = next((folder for folder in folders if folder["parentFolderID"] is None), None)
-    if not root_folder:
-        raise ValueError("Root folder was not found")
 
     options = [{
         "publicID": root_folder["publicID"],

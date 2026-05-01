@@ -27,11 +27,15 @@ from app.db.files import (
 )
 from app.db.folders import (
     create_folder_db,
+    create_public_folder_db,
     delete_folder_db,
     get_folder_by_id,
     get_folder_id_by_public_id,
+    get_folder_by_public_id,
+    get_folder_by_name_in_parent,
     get_folders_child_folder_ids,
     get_user_folder_by_name_in_parent,
+    get_user_folder_id_by_public_id,
     get_user_folder_by_public_id,
     get_users_root_folder,
     update_folder_public_db,
@@ -40,7 +44,7 @@ from app.services.app import DeleteItemsPayload, UploadChunkPayload
 from app.services.app import normalize_share_expires_at, parse_python_datetime, resolve_share_recipient_users
 from app.services.folders import can_user_access_shared_folder
 from app.security.passwords import hash_password
-from config import DISKS, MEDIA_FOLDER_NAME, RUNTIME_DIR, tmpFolder
+from config import DISKS, MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID, RUNTIME_DIR, tmpFolder
 
 
 upload_list = []
@@ -552,7 +556,24 @@ async def get_file_share_settings(user_id: int, file_public_id: str) -> dict:
 
 async def resolve_upload_folder_id(user_id: int, folder_public_id: str | None) -> int:
     if folder_public_id:
-        folder = await get_folder_id_by_public_id(folder_public_id)
+        if folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
+            folder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
+            if folder:
+                return folder["folderID"]
+
+            root_folder = await get_users_root_folder(user_id)
+            created_folder = await create_public_folder_db(
+                MEDIA_FOLDER_NAME,
+                user_id,
+                root_folder[0]["folderID"],
+                MEDIA_FOLDER_PUBLIC_ID
+            )
+            folder = await get_folder_by_public_id(created_folder["publicID"])
+            return folder["folderID"]
+
+        folder = await get_user_folder_id_by_public_id(user_id, folder_public_id)
+        if not folder:
+            raise ValueError("Upload folder was not found")
         return folder["folderID"]
 
     root_folder = await get_users_root_folder(user_id)
@@ -578,10 +599,13 @@ async def ensure_nested_upload_folders(user_id: int, base_folder_id: int, relati
     current_folder_id = base_folder_id
 
     for folder_name in get_relative_folder_parts(relative_path):
-        existing_folder = await get_user_folder_by_name_in_parent(user_id, current_folder_id, folder_name)
+        if await is_media_folder_tree(current_folder_id):
+            existing_folder = await get_folder_by_name_in_parent(current_folder_id, folder_name)
+        else:
+            existing_folder = await get_user_folder_by_name_in_parent(user_id, current_folder_id, folder_name)
         if existing_folder:
             if await should_folder_be_public_after_upload(current_folder_id, folder_name):
-                await update_folder_public_db(user_id, existing_folder["folderID"], True)
+                await update_folder_public_db(existing_folder["userID"], existing_folder["folderID"], True)
             current_folder_id = existing_folder["folderID"]
             continue
 
@@ -739,6 +763,9 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
         processed_file_public_ids.add(file_public_id)
 
     for folder_public_id in payload.folder_public_ids:
+        if folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
+            raise ValueError("Shared Movies folder cannot be deleted")
+
         folder = await get_user_folder_by_public_id(user_id, folder_public_id)
         if not folder:
             continue
