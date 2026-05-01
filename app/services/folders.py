@@ -6,6 +6,7 @@ from app.db.files import get_folders_child_files, get_shared_files_for_user, get
 from app.db.folders import (
     add_root_folder,
     create_folder_db,
+    create_public_folder_db,
     get_all_user_folders,
     get_folder_by_id,
     get_folder_by_public_id,
@@ -15,6 +16,7 @@ from app.db.folders import (
     get_folder_shared_users,
     get_parent_folder,
     get_shared_root_folders_for_user,
+    get_user_folder_by_name_in_parent,
     is_folder_shared_with_user,
     replace_folder_shared_users,
     update_folder_share_settings_db,
@@ -24,6 +26,7 @@ from app.db.folders import (
     get_users_root_folder,
     get_users_roots_child_folders,
 )
+from config import MEDIA_FOLDER_NAME
 from app.security.passwords import hash_password
 from app.services.app import (
     StartUpResult,
@@ -50,6 +53,9 @@ async def home(user_id) -> StartUpResult:
     all_folders = await get_all_user_folders(user_id)
 
     root_folder = rootFolder[0]
+    await ensure_media_folder(user_id, root_folder["folderID"])
+    inRootFolders = await get_users_roots_child_folders(user_id)
+    all_folders = await get_all_user_folders(user_id)
     breadcrumbs = [{
         "label": root_folder["folderName"],
         "url": "/app/home",
@@ -58,6 +64,25 @@ async def home(user_id) -> StartUpResult:
     folder_tree = build_folder_tree_nodes(all_folders, root_folder["folderID"])
 
     return StartUpResult(inRootFolders, inRootFiles, breadcrumbs, folder_tree)
+
+
+async def ensure_media_folder(user_id: int, root_folder_id: int) -> dict:
+    folder = await get_user_folder_by_name_in_parent(user_id, root_folder_id, MEDIA_FOLDER_NAME)
+    if folder:
+        if not folder.get("public"):
+            await update_folder_public_db(user_id, folder["folderID"], True)
+        existing_folder = await get_user_folder_by_id(user_id, folder["folderID"])
+        return existing_folder
+
+    created_folder = await create_public_folder_db(MEDIA_FOLDER_NAME, user_id, root_folder_id)
+    await create_audit_log(
+        user_id,
+        "folder.created",
+        "folder",
+        created_folder["publicID"],
+        {"folderName": MEDIA_FOLDER_NAME, "parentFolderID": root_folder_id, "public": True}
+    )
+    return created_folder
 
 
 async def check_dublicate(userID, parentFolderID, newFolderName):
@@ -81,6 +106,11 @@ async def create_folder(folderName, userID, url: str):
         return 1
 
     folder = await create_folder_db(folderName, userID, parentFolderID)
+    parent_folder = await get_folder_by_id(parentFolderID)
+    if parent_folder and parent_folder.get("public"):
+        folder_row = await get_folder_id_by_public_id(folder["publicID"])
+        folder = await update_folder_public_db(userID, folder_row["folderID"], True)
+
     await create_audit_log(
         userID,
         "folder.created",

@@ -50,6 +50,22 @@ async def create_folder_db(folderName, userID, parentFolderID):
     )
 
 
+async def create_public_folder_db(folderName, userID, parentFolderID):
+    publicID = generateRandomHash()
+    await execute(
+        """
+        insert into folders (
+            userID, folderName, parentFolderID, createdAt, lastModified, publicID, public
+        ) values (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, %s, true)
+        """,
+        (userID, folderName, parentFolderID, publicID,)
+    )
+    return await fetch_one(
+        f"select {FOLDER_SUMMARY_FIELDS} from folders where userID=%s and publicID=%s",
+        (userID, publicID,)
+    )
+
+
 async def get_folder_id_by_public_id(publicID):
     return await fetch_one("select folderID from folders where publicID=%s", (publicID,))
 
@@ -136,7 +152,7 @@ async def get_folders_names_in_folder(userID, folderID):
 
 
 async def get_user_folder_by_name_in_parent(userID, parentFolderID, folderName, excludeFolderID=None):
-    query = "select folderID, publicID, folderName from folders where userID=%s and parentFolderID <=> %s and folderName=%s"
+    query = "select folderID, publicID, public, folderName from folders where userID=%s and parentFolderID <=> %s and folderName=%s"
     args = [userID, parentFolderID, folderName]
     if excludeFolderID is not None:
         query += " and folderID!=%s"

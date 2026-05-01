@@ -32,12 +32,13 @@ from app.db.folders import (
     get_user_folder_by_name_in_parent,
     get_user_folder_by_public_id,
     get_users_root_folder,
+    update_folder_public_db,
 )
 from app.services.app import DeleteItemsPayload, UploadChunkPayload
 from app.services.app import normalize_share_expires_at, parse_python_datetime, resolve_share_recipient_users
 from app.services.folders import can_user_access_shared_folder
 from app.security.passwords import hash_password
-from config import DISKS, tmpFolder
+from config import DISKS, MEDIA_FOLDER_NAME, tmpFolder
 
 
 upload_list = []
@@ -224,6 +225,43 @@ def build_final_path(final_dir: Path, upload_id: str, file_name: str) -> Path:
         final_path = final_dir / f"{upload_id}_{safe_file_name}"
 
     return final_path
+
+
+async def get_folder_path_parts(folder_id: int | None) -> list[str]:
+    if folder_id is None:
+        return []
+
+    parts = []
+    current_folder = await get_folder_by_id(folder_id)
+    while current_folder:
+        parts.append(current_folder["folderName"])
+        parent_folder_id = current_folder["parentFolderID"]
+        if parent_folder_id is None:
+            break
+        current_folder = await get_folder_by_id(parent_folder_id)
+
+    return list(reversed(parts))
+
+
+async def get_folder_physical_upload_dir(upload: dict, folder_id: int | None) -> Path:
+    upload_disk = Path(upload["uploadDisk"])
+    folder_parts = await get_folder_path_parts(folder_id)
+
+    if len(folder_parts) >= 2 and folder_parts[1] == MEDIA_FOLDER_NAME:
+        final_dir = upload_disk.joinpath(MEDIA_FOLDER_NAME, *folder_parts[2:])
+    else:
+        final_dir = upload_disk
+
+    final_dir.mkdir(parents=True, exist_ok=True)
+    return final_dir
+
+
+async def is_public_upload_folder(folder_id: int | None) -> bool:
+    if folder_id is None:
+        return False
+
+    folder = await get_folder_by_id(folder_id)
+    return bool(folder and folder.get("public"))
 
 
 def assemble_file(temp_dir: Path, final_path: Path, total_chunks: int) -> int:
@@ -469,11 +507,15 @@ async def ensure_nested_upload_folders(user_id: int, base_folder_id: int, relati
     for folder_name in get_relative_folder_parts(relative_path):
         existing_folder = await get_user_folder_by_name_in_parent(user_id, current_folder_id, folder_name)
         if existing_folder:
+            if await is_public_upload_folder(current_folder_id):
+                await update_folder_public_db(user_id, existing_folder["folderID"], True)
             current_folder_id = existing_folder["folderID"]
             continue
 
         created_folder = await create_folder_db(folder_name, user_id, current_folder_id)
         folder_row = await get_folder_id_by_public_id(created_folder["publicID"])
+        if await is_public_upload_folder(current_folder_id):
+            await update_folder_public_db(user_id, folder_row["folderID"], True)
         current_folder_id = folder_row["folderID"]
 
     return current_folder_id
@@ -521,6 +563,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
 
     root_folder_id = await resolve_upload_folder_id(user_id, payload.folder_public_id)
     folder_id = await ensure_nested_upload_folders(user_id, root_folder_id, payload.relative_path)
+    final_dir = await get_folder_physical_upload_dir(upload, folder_id)
     user = await get_user_by_id(user_id)
     current_usage = await get_user_storage_usage(user_id)
     storage_quota_bytes = user["storageQuotaBytes"] if user else None
@@ -543,6 +586,10 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
         bytes_written,
         str(final_path)
     )
+    if await is_public_upload_folder(folder_id):
+        created_file = await get_user_file_by_public_id(user_id, file["publicID"])
+        file = await update_file_public_db(user_id, created_file["fileID"], True)
+
     await create_audit_log(
         user_id,
         "file.upload.completed",
