@@ -216,6 +216,25 @@ async def get_user_storage_usage(user_id):
     return result["totalSizeBytes"] if result else 0
 
 
+async def get_storage_usage_for_disk_path(disk_path):
+    normalized_path = str(disk_path).rstrip("/\\")
+    result = await fetch_one(
+        """
+        select coalesce(sum(sizeBytes), 0) as totalSizeBytes
+        from files
+        where serverPath=%s
+           or serverPath like %s
+           or serverPath like %s
+        """,
+        (
+            normalized_path,
+            f"{normalized_path}/%",
+            f"{normalized_path}\\%",
+        )
+    )
+    return result["totalSizeBytes"] if result else 0
+
+
 async def delete_user_files(user_id):
     return await execute("delete from files where userID=%s", (user_id,))
 
@@ -240,6 +259,10 @@ async def get_upload_disk_settings():
 
 async def set_upload_disk_enabled(disk_path, is_enabled):
     await execute(
-        "update upload_disks set isEnabled=%s where diskPath=%s",
-        (is_enabled, disk_path,)
+        """
+        insert into upload_disks (diskPath, isEnabled)
+        values (%s, %s)
+        on duplicate key update isEnabled=values(isEnabled)
+        """,
+        (disk_path, is_enabled,)
     )

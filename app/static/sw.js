@@ -1,4 +1,4 @@
-const CACHE_NAME = "nosocial-shell-v1";
+const CACHE_NAME = "nosocial-shell-v4";
 const SHELL_ASSETS = [
   "/static/css/styles.css",
   "/static/js/main.js",
@@ -48,7 +48,22 @@ self.addEventListener("fetch", function(event) {
 
   event.respondWith(
     caches.match(request).then(function(cachedResponse) {
-      return cachedResponse || fetch(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      return fetch(request).then(function(networkResponse) {
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
+          return networkResponse;
+        }
+
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(request, responseToCache);
+        });
+
+        return networkResponse;
+      });
     })
   );
 });

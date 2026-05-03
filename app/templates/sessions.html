@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Active Sessions{% endblock %}
+
+{% block content %}
+  <section class="sessions-page">
+    <div class="sessions-hero">
+      <div class="sessions-copy">
+        <a class="sessions-back" href="/app/home">Back to Drive</a>
+        <h2>Active Sessions</h2>
+        <p>Manage the devices currently signed in to your account.</p>
+      </div>
+      <div class="sessions-summary" aria-label="Session summary">
+        <div>
+          <strong>{{ sessions|length }}</strong>
+          <span>active</span>
+        </div>
+        <div>
+          <strong>{{ sessions|selectattr('current')|list|length }}</strong>
+          <span>current</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sessions-toolbar">
+      <div>
+        <strong>Signed-in devices</strong>
+        <span>Last activity updates while you use the app.</span>
+      </div>
+      <div class="sessions-actions">
+        <form action="/app/sessions/logout-others" method="post">
+          <button class="btn primary" type="submit">Log Out Other Devices</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="sessions-list">
+      {% for session in sessions %}
+        <article class="session-row{% if session.current %} current{% endif %}">
+          <div class="session-device-icon" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="session-main">
+            <div class="session-title-line">
+              <strong>{{ 'This Device' if session.current else 'Signed-In Device' }}</strong>
+              {% if session.current %}
+                <span class="session-badge">Current</span>
+              {% endif %}
+            </div>
+            <div class="session-agent">{{ session.userAgent }}</div>
+          </div>
+          <dl class="session-meta">
+            <div><dt>IP</dt><dd>{{ session.ip }}</dd></div>
+            <div><dt>Created</dt><dd>{{ session.createdAtLabel }}</dd></div>
+            <div><dt>Last Seen</dt><dd>{{ session.lastSeenAtLabel }}</dd></div>
+            <div><dt>Expires</dt><dd>{{ (session.expiresInSeconds // 3600) }}h</dd></div>
+          </dl>
+        </article>
+      {% else %}
+        <div class="sessions-empty">No active sessions.</div>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

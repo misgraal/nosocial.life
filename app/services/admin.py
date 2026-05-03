@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
+import string
+import sys
 
 from app.db.admin import (
     clear_audit_log_user_references,
@@ -10,6 +12,7 @@ from app.db.admin import (
     delete_user_files,
     get_public_file_shares,
     get_public_folder_shares,
+    get_storage_usage_for_disk_path,
     get_user_by_id,
     get_user_files_for_admin,
     get_user_folders_for_admin,
@@ -71,48 +74,98 @@ def get_existing_path(path: Path) -> Path:
     return probe_path
 
 
-def get_directory_used_space(disk_path: str) -> int:
-    root_path = Path(disk_path)
-    if not root_path.exists():
-        return 0
+def normalize_disk_path(path: str) -> str:
+    normalized_path = str(Path(path)).replace("\\", "/")
+    if sys.platform.startswith("win") and len(normalized_path) == 2 and normalized_path[1] == ":":
+        normalized_path += "/"
+    return normalized_path
 
-    total_size = 0
-    for file_path in root_path.rglob("*"):
-        if not file_path.is_file():
-            continue
 
+def get_available_system_disks() -> list[str]:
+    disks = set()
+
+    if sys.platform.startswith("win"):
+        for letter in string.ascii_uppercase:
+            disk_path = f"{letter}:/"
+            if Path(disk_path).exists():
+                disks.add(disk_path)
+        return sorted(disks)
+
+    if sys.platform == "darwin":
+        disks.add("/")
+        volumes_path = Path("/Volumes")
+        if volumes_path.exists():
+            for volume_path in volumes_path.iterdir():
+                if volume_path.is_dir():
+                    disks.add(str(volume_path))
+        return sorted(disks)
+
+    disks.add("/")
+    mounts_path = Path("/proc/mounts")
+    if mounts_path.exists():
         try:
-            total_size += file_path.stat().st_size
+            for line in mounts_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                mount_path = parts[1].replace("\\040", " ")
+                fs_type = parts[2]
+                if fs_type in {"proc", "sysfs", "devtmpfs", "devpts", "tmpfs", "cgroup", "cgroup2", "overlay", "squashfs"}:
+                    continue
+                if mount_path.startswith(("/mnt", "/media", "/run/media", "/home")) or mount_path == "/":
+                    disks.add(mount_path)
         except OSError:
-            continue
+            pass
 
-    return total_size
+    return sorted(disks)
+
+
+def get_selectable_upload_disks() -> list[str]:
+    disks = {
+        normalize_disk_path(disk_path)
+        for disk_path in [*DISKS, *get_available_system_disks()]
+        if str(disk_path or "").strip()
+    }
+    return sorted(disks, key=lambda path: path.casefold())
+
+
+def ensure_upload_disk_directories(disk_path: str) -> None:
+    disk = Path(disk_path)
+    disk.mkdir(parents=True, exist_ok=True)
+    (disk / TMP_FOLDER).mkdir(parents=True, exist_ok=True)
+    (disk / MEDIA_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
 
 
 async def get_disk_stats_async() -> list[dict]:
     stats = []
     disk_settings = {
-        disk["diskPath"]: bool(disk["isEnabled"])
+        normalize_disk_path(disk["diskPath"]): bool(disk["isEnabled"])
         for disk in await get_upload_disk_settings()
     }
+    configured_disks = set(disk_settings)
 
-    for disk_path in DISKS:
+    for disk_path in get_selectable_upload_disks():
         probe_path = get_existing_path(Path(disk_path))
-        usage = shutil.disk_usage(probe_path)
-        app_used_space = get_directory_used_space(disk_path)
-        used_percent = round((usage.used / usage.total) * 100) if usage.total else 0
-        app_used_percent = round((app_used_space / usage.total) * 100) if usage.total else 0
+        try:
+            usage = shutil.disk_usage(probe_path)
+        except OSError:
+            usage = None
+        app_used_space = await get_storage_usage_for_disk_path(disk_path)
+        used_percent = round((usage.used / usage.total) * 100) if usage and usage.total else 0
+        app_used_percent = round((app_used_space / usage.total) * 100) if usage and usage.total else 0
 
         stats.append({
             "name": Path(disk_path).name or disk_path,
             "path": disk_path,
             "percent": used_percent,
-            "used": format_bytes(usage.used),
-            "free": format_bytes(usage.free),
-            "total": format_bytes(usage.total),
+            "used": format_bytes(usage.used if usage else 0),
+            "free": format_bytes(usage.free if usage else 0),
+            "total": format_bytes(usage.total if usage else 0),
             "appUsed": format_bytes(app_used_space),
             "appPercent": app_used_percent,
-            "isEnabled": disk_settings.get(disk_path, True),
+            "isEnabled": disk_settings.get(disk_path, False),
+            "isConfigured": disk_path in configured_disks,
+            "isAvailable": Path(disk_path).exists(),
         })
 
     return stats
@@ -120,8 +173,24 @@ async def get_disk_stats_async() -> list[dict]:
 
 async def get_system_diagnostics() -> list[dict]:
     diagnostics = []
+    disk_settings = {
+        normalize_disk_path(disk["diskPath"]): bool(disk["isEnabled"])
+        for disk in await get_upload_disk_settings()
+    }
+    enabled_disks = [
+        disk_path
+        for disk_path, is_enabled in disk_settings.items()
+        if is_enabled
+    ]
 
-    for disk_path in DISKS:
+    if not enabled_disks:
+        diagnostics.append({
+            "name": "Upload disks",
+            "status": "Not configured",
+            "detail": "Select at least one disk and save the disk selection.",
+        })
+
+    for disk_path in enabled_disks:
         disk = Path(disk_path)
         media_dir = disk / MEDIA_FOLDER_NAME
         temp_dir = disk / TMP_FOLDER
@@ -133,8 +202,12 @@ async def get_system_diagnostics() -> list[dict]:
             },
             {
                 "name": "Storage writable",
-                "status": "OK" if disk.exists() and disk.is_dir() and os_access_write(disk) else "Check permissions",
-                "detail": str(disk),
+                "status": (
+                    "OK"
+                    if disk.exists() and disk.is_dir() and os_access_write(disk)
+                    else "Check permissions"
+                ),
+                "detail": f"{disk} (enabled)",
             },
             {
                 "name": "DLNA media folder",
@@ -422,11 +495,19 @@ async def delete_user_account(admin_user_id: int, target_user_id: int):
 async def update_active_upload_disks(admin_user_id: int, selected_disks: list[str]):
     await assert_admin(admin_user_id)
 
-    normalized_selected_disks = {disk_path for disk_path in selected_disks if disk_path in DISKS}
+    selectable_disks = set(get_selectable_upload_disks())
+    normalized_selected_disks = {
+        normalize_disk_path(disk_path)
+        for disk_path in selected_disks
+        if normalize_disk_path(disk_path) in selectable_disks
+    }
     if not normalized_selected_disks:
         raise ValueError("At least one disk must remain enabled")
 
-    for disk_path in DISKS:
+    for disk_path in normalized_selected_disks:
+        ensure_upload_disk_directories(disk_path)
+
+    for disk_path in selectable_disks:
         await set_upload_disk_enabled(disk_path, disk_path in normalized_selected_disks)
     await create_audit_log(
         admin_user_id,

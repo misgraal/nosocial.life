@@ -1,4 +1,8 @@
 from datetime import datetime
+import os
+import tempfile
+import zipfile
+from urllib.parse import urlparse
 
 from app.db.app import get_user_username_by_id
 from app.db.app import create_audit_log
@@ -6,6 +10,7 @@ from pathlib import Path
 
 from app.db.files import (
     get_folders_child_files,
+    get_folders_child_files_for_download,
     get_shared_files_for_user,
     get_users_roots_child_files,
 )
@@ -51,6 +56,7 @@ from app.services.app import (
     normalize_share_expires_at,
     parse_python_datetime,
     resolve_share_recipient_users,
+    sanitize_item_name,
 )
 
 
@@ -60,9 +66,13 @@ async def home(user_id) -> StartUpResult:
 
     inRootFolders = await get_users_roots_child_folders(user_id)
     inRootFiles = await get_users_roots_child_files(user_id)
+    shared_folders = mark_shared_items(await get_shared_root_folders_for_user(user_id))
+    shared_files = mark_shared_items(await get_shared_files_for_user(user_id))
     all_folders = await get_all_user_folders(user_id)
 
     inRootFolders = add_media_folder_to_root_listing(inRootFolders, media_folder)
+    inRootFolders.extend(shared_folders)
+    inRootFiles.extend(shared_files)
     all_folders = add_media_folder_to_user_tree(all_folders, media_folder, root_folder["folderID"])
     breadcrumbs = [{
         "label": root_folder["folderName"],
@@ -72,6 +82,15 @@ async def home(user_id) -> StartUpResult:
     folder_tree = build_folder_tree_nodes(all_folders, root_folder["folderID"])
 
     return StartUpResult(inRootFolders, inRootFiles, breadcrumbs, folder_tree)
+
+
+def mark_shared_items(items: list[dict]) -> list[dict]:
+    marked_items = []
+    for item in items:
+        marked_item = dict(item)
+        marked_item["shared"] = True
+        marked_items.append(marked_item)
+    return marked_items
 
 
 async def ensure_root_folder(user_id: int) -> dict:
@@ -196,15 +215,22 @@ async def check_dublicate(userID, parentFolderID, newFolderName):
 
 
 async def create_folder(folderName, userID, url: str):
-    parentPublicID = url.split("/")[-1]
+    folderName = sanitize_item_name(folderName)
+    parentPublicID = urlparse(url or "").path.rstrip("/").split("/")[-1]
     if parentPublicID == "home":
         parentFolder = await get_users_root_folder(userID)
+        if not parentFolder:
+            raise ValueError("Root folder was not found")
         parentFolderID = parentFolder[0]["folderID"]
     elif parentPublicID == MEDIA_FOLDER_PUBLIC_ID:
         parentFolder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
+        if not parentFolder:
+            raise ValueError("Movies folder was not found")
         parentFolderID = parentFolder["folderID"]
     else:
         parentFolder = await get_user_folder_id_by_public_id(userID, parentPublicID)
+        if not parentFolder:
+            raise ValueError("Parent folder was not found")
         parentFolderID = parentFolder["folderID"]
 
     if await check_dublicate(userID, parentFolderID, folderName) == 1:
@@ -652,3 +678,87 @@ async def get_public_folder_content(publicID: str) -> folderContent:
     folder_tree = await build_public_folder_tree_node(folder, folder["folderID"])
 
     return folderContent(child_folders, child_files, breadcrumbs, folder_tree)
+
+
+def sanitize_zip_name(value: str, fallback: str = "item") -> str:
+    name = str(value or "").replace("\\", "_").replace("/", "_").strip()
+    name = "".join(
+        character if ord(character) >= 32 else "_"
+        for character in name
+    )
+    return name.strip(". ") or fallback
+
+
+def get_unique_zip_path(path: str, used_paths: set[str]) -> str:
+    normalized_path = path.strip("/")
+    if normalized_path not in used_paths:
+        used_paths.add(normalized_path)
+        return normalized_path
+
+    parent, name = normalized_path.rsplit("/", 1) if "/" in normalized_path else ("", normalized_path)
+    stem, extension = os.path.splitext(name)
+    index = 2
+    while True:
+        candidate_name = f"{stem} ({index}){extension}"
+        candidate_path = f"{parent}/{candidate_name}" if parent else candidate_name
+        if candidate_path not in used_paths:
+            used_paths.add(candidate_path)
+            return candidate_path
+        index += 1
+
+
+async def collect_folder_zip_entries(folder: dict, include_private: bool) -> tuple[str, list[str], list[dict]]:
+    root_name = sanitize_zip_name(folder["folderName"], "folder")
+    folder_entries = [root_name]
+    file_entries = []
+    used_paths = {root_name}
+
+    async def collect(current_folder: dict, current_zip_path: str):
+        child_folders = await get_folders_child_folders(current_folder["folderID"])
+        for child_folder in child_folders:
+            if not include_private and not is_public_folder_accessible(child_folder):
+                continue
+
+            folder_name = sanitize_zip_name(child_folder["folderName"], "folder")
+            child_zip_path = get_unique_zip_path(f"{current_zip_path}/{folder_name}", used_paths)
+            folder_entries.append(child_zip_path)
+            await collect(child_folder, child_zip_path)
+
+        child_files = await get_folders_child_files_for_download(current_folder["folderID"])
+        for child_file in child_files:
+            if not include_private and not is_public_file_row_accessible(child_file):
+                continue
+            if not include_private and not child_file.get("publicAllowDownload", True):
+                continue
+
+            file_name = sanitize_zip_name(child_file["fileName"], "file")
+            archive_path = get_unique_zip_path(f"{current_zip_path}/{file_name}", used_paths)
+            file_entries.append({
+                "archivePath": archive_path,
+                "serverPath": child_file["serverPath"]
+            })
+
+    await collect(folder, root_name)
+    return root_name, folder_entries, file_entries
+
+
+def create_folder_zip_file(root_name: str, folder_entries: list[str], file_entries: list[dict]) -> str:
+    archive_handle = tempfile.NamedTemporaryFile(prefix="nosocial-folder-", suffix=".zip", delete=False)
+    archive_path = archive_handle.name
+    archive_handle.close()
+
+    try:
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for folder_path in folder_entries:
+                archive.writestr(f"{folder_path.rstrip('/')}/", "")
+
+            for file_entry in file_entries:
+                file_path = Path(file_entry["serverPath"])
+                if not file_path.exists() or not file_path.is_file():
+                    continue
+                archive.write(file_path, file_entry["archivePath"])
+    except Exception:
+        Path(archive_path).unlink(missing_ok=True)
+        raise
+
+    return archive_path

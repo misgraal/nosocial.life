@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from app.db.login import get_user_auth_record
 from app.security.passwords import verify_password
+from app.services.register import normalize_username
 
 
 @dataclass
@@ -13,9 +14,13 @@ class LoginResult:
 
 
 async def login(username: str, password: str) -> LoginResult:
-    user = await get_user_auth_record(username)
+    normalized_username = normalize_username(username)
+    if not normalized_username or not password:
+        return LoginResult(False, 1)
+
+    user = await get_user_auth_record(normalized_username)
     if not user:
-        return LoginResult(False, 2)
+        return LoginResult(False, 1)
 
     if user["blocked"]:
         return LoginResult(False, 3)
@@ -28,4 +33,4 @@ async def login(username: str, password: str) -> LoginResult:
     if not password_matches:
         return LoginResult(False, 1)
 
-    return LoginResult(True, 0, user_id=user["userID"], username=username)
+    return LoginResult(True, 0, user_id=user["userID"], username=user["username"])

@@ -13,6 +13,11 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @router.get("/logout")
+async def logoutPage():
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/logout")
 async def main(
     request: Request
 ):

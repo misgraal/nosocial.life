@@ -6,11 +6,21 @@ from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from app.db.db import lifespan
 from config import STATIC_DIR
+from starlette.middleware.gzip import GZipMiddleware
 from urllib.parse import urlparse
 
 
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers.setdefault("Cache-Control", "public, max-age=604800")
+        return response
+
+
 app = FastAPI(lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.mount("/static", CachedStaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.middleware("http")
@@ -39,7 +49,10 @@ async def service_worker():
     return FileResponse(
         str(STATIC_DIR / "sw.js"),
         media_type="application/javascript",
-        headers={"Service-Worker-Allowed": "/"}
+        headers={
+            "Service-Worker-Allowed": "/",
+            "Cache-Control": "no-cache"
+        }
     )
 
 

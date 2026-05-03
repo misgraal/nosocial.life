@@ -1,14 +1,17 @@
-from app.db.db import fetch_one
-from app.db.db import execute
+from app.db.db import execute, fetch_one
 
-async def check_user(username):
-    res = await fetch_one("SELECT * FROM users WHERE username=%s", (username))
-    return res
 
-async def add_user(username, password):
+async def check_user(username: str):
+    return await fetch_one(
+        "select userID, username from users where lower(username)=lower(%s)",
+        (username,)
+    )
+
+
+async def add_user(username: str, password: str):
     role = "admin" if str(username or "").strip().casefold() == "admin" else "user"
-    res = await execute(
-        "INSERT INTO users (username, password, role) values (%s, %s, %s)",
+    await execute(
+        "insert into users (username, password, role) values (%s, %s, %s)",
         (username, password, role)
     )
-    return res
+    return await check_user(username)

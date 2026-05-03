@@ -23,11 +23,10 @@ document.addEventListener('DOMContentLoaded', function(){
   const submitBtn = document.getElementById('submit-btn');
   const errorBox = document.getElementById('auth-error');
   const themeToggle = document.getElementById('theme-toggle');
-  console.log(window.__AUTH_ERROR__);
 
   if(email){ email.focus(); }
 
-  let mode = 'login';
+  let mode = window.__AUTH_MODE__ === 'register' ? 'register' : 'login';
 
   function setMode(m){
     mode = m;

@@ -2,24 +2,14 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import asyncmy
 from fastapi import FastAPI
 
 from app.security.folderHashGenerator import generateRandomHash
-from config import DISKS, MEDIA_FOLDER_NAME, TMP_FOLDER
 
 
 _pool: asyncmy.Pool | None = None
-
-
-def ensure_storage_directories() -> None:
-    for disk_path in DISKS:
-        disk = Path(disk_path)
-        disk.mkdir(parents=True, exist_ok=True)
-        (disk / TMP_FOLDER).mkdir(parents=True, exist_ok=True)
-        (disk / MEDIA_FOLDER_NAME).mkdir(parents=True, exist_ok=True)
 
 
 async def init_pool() -> None:
@@ -45,7 +35,6 @@ async def close_pool() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    ensure_storage_directories()
     await init_pool()
     await init_schema()
     from app.services.files import cleanup_stale_upload_chunks
@@ -71,7 +60,7 @@ async def fetch_all(query: str, args: tuple | None = None) -> list[dict]:
     async with _pool.acquire() as conn:
         async with conn.cursor(asyncmy.cursors.DictCursor) as cur:
             await cur.execute(query, args)
-            return await cur.fetchall()
+            return list(await cur.fetchall())
 
 
 async def execute(query: str, args: tuple | None = None):
@@ -307,7 +296,7 @@ async def init_schema():
                 continue
 
             await execute(
-                "insert into upload_disks (diskPath, isEnabled) values (%s, true)",
+                "insert into upload_disks (diskPath, isEnabled) values (%s, false)",
                 (disk_path,)
             )
 

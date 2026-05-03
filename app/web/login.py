@@ -3,6 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 from app.db.app import create_audit_log
 from app.services.login import login
+from app.services.register import normalize_username
 from app.security.sesions import create_session
 from app.security.rate_limit import check_rate_limit, clear_rate_limit
 from config import COOKIE_SECURE, TEMPLATES_DIR
@@ -12,6 +13,10 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+@router.get("/login")
+async def login_page():
+    return RedirectResponse("/", status_code=303)
+
 
 @router.post("/login")
 async def main(
@@ -20,7 +25,8 @@ async def main(
     password: str = Form(...),
     confirm_password: str | None = Form(None),
 ):
-    rate_limit_key = f"login:{request.client.host if request.client else 'unknown'}:{username.strip().casefold()}"
+    normalized_username = normalize_username(username)
+    rate_limit_key = f"login:{request.client.host if request.client else 'unknown'}:{normalized_username.casefold()}"
     try:
         check_rate_limit(rate_limit_key)
     except ValueError as error:
@@ -28,7 +34,8 @@ async def main(
             "index.html",
             {
                 "request": request,
-                "error": str(error)
+                "error": str(error),
+                "auth_mode": "login"
             },
             status_code=429
         )
@@ -36,8 +43,12 @@ async def main(
     result = await login(username, password)
     if result.success == True:
         clear_rate_limit(rate_limit_key)
-        sid = create_session(result.user_id)
-        await create_audit_log(result.user_id, "auth.login", "user", str(result.user_id), {"username": username})
+        sid = create_session(
+            result.user_id,
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent")
+        )
+        await create_audit_log(result.user_id, "auth.login", "user", str(result.user_id), {"username": result.username})
         resp = RedirectResponse("/app/home", status_code=303)
         resp.set_cookie(
             "session_id",
@@ -49,7 +60,7 @@ async def main(
         )
         resp.set_cookie(
             "username",
-            username,
+            result.username,
             max_age=60*60*24*7,
             httponly=True,
             samesite="lax",
@@ -58,14 +69,14 @@ async def main(
         return resp
     else: 
         error = (
-            "Incorrect username or password" if result.error == 1
-            else "User does not exist" if result.error == 2
+            "Incorrect username or password" if result.error in {1, 2}
             else "User is blocked"
         )
         return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "error": error
+            "error": error,
+            "auth_mode": "login"
         }
     )

@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabs = Array.from(document.querySelectorAll("[data-tab]"));
   const panels = Array.from(document.querySelectorAll("[data-tab-panel]"));
   const filters = Array.from(document.querySelectorAll("[data-admin-filter]"));
+  const diskSelectionForm = document.querySelector("[data-confirm-disk-selection]");
 
   if (!tabs.length || !panels.length) {
     return;
@@ -48,4 +49,19 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   });
+
+  if (diskSelectionForm) {
+    diskSelectionForm.addEventListener("submit", (event) => {
+      const checkedDisks = diskSelectionForm.querySelectorAll('input[name="selected_disks"]:checked');
+      if (!checkedDisks.length) {
+        event.preventDefault();
+        window.alert("Select at least one disk for uploads.");
+        return;
+      }
+
+      if (!window.confirm(diskSelectionForm.dataset.confirmDiskSelection)) {
+        event.preventDefault();
+      }
+    });
+  }
 });

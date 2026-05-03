@@ -6,6 +6,7 @@ from app.db.admin import get_users_by_usernames
 from app.db.app import create_audit_log
 from app.db.files import (
     get_folders_child_files,
+    get_shared_files_for_user,
     get_user_file_by_name_in_folder,
     get_user_file_by_public_id,
     search_user_files_by_name,
@@ -17,6 +18,7 @@ from app.db.folders import (
     get_all_user_folders,
     get_folder_by_public_id,
     get_folders_child_folders,
+    get_shared_root_folders_for_user,
     get_user_folder_by_name_in_parent,
     get_user_folder_by_public_id,
     search_user_folders_by_name,
@@ -429,7 +431,7 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
 
         folder = await get_user_folder_by_public_id(user_id, folder_public_id)
         if not folder:
-            continue
+            raise ValueError("Folder was not found or you do not have permission to move it")
 
         if folder["folderID"] == destination_folder["folderID"]:
             raise ValueError("Folder cannot be moved into itself")
@@ -472,7 +474,7 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
     for file_public_id in payload.file_public_ids:
         file = await get_user_file_by_public_id(user_id, file_public_id)
         if not file:
-            continue
+            raise ValueError("File was not found or you do not have permission to move it")
 
         duplicate_file = await get_user_file_by_name_in_folder(
             user_id,
@@ -536,6 +538,8 @@ async def search_drive(
     search_term = normalized_query or ""
     found_folders = await search_user_folders_by_name(user_id, search_term, limit=limit)
     found_files = await search_user_files_by_name(user_id, search_term, limit=limit)
+    shared_folders = await get_shared_root_folders_for_user(user_id)
+    shared_files = await get_shared_files_for_user(user_id)
 
     date_from_value = parse_python_datetime(date_from)
     date_to_value = parse_python_datetime(date_to)
@@ -578,9 +582,23 @@ async def search_drive(
         folder for folder in found_folders
         if normalized_kind in {"", "all", "folders"} and matches_date(folder["lastModified"])
     ]
+    filtered_shared_folders = [
+        folder for folder in shared_folders
+        if normalized_kind in {"", "all", "folders"}
+        and (not search_term or search_term.casefold() in str(folder["folderName"]).casefold())
+        and matches_date(folder["lastModified"])
+    ]
     filtered_files = [
         file for file in found_files
         if matches_file_kind(file["fileName"])
+        and (min_size is None or (file["sizeBytes"] or 0) >= min_size)
+        and (max_size is None or (file["sizeBytes"] or 0) <= max_size)
+        and matches_date(file["lastModified"])
+    ]
+    filtered_shared_files = [
+        file for file in shared_files
+        if matches_file_kind(file["fileName"])
+        and (not search_term or search_term.casefold() in str(file["fileName"]).casefold())
         and (min_size is None or (file["sizeBytes"] or 0) >= min_size)
         and (max_size is None or (file["sizeBytes"] or 0) <= max_size)
         and matches_date(file["lastModified"])
@@ -595,8 +613,12 @@ async def search_drive(
                 "folderName": folder["folderName"],
                 "lastModified": folder["lastModified"],
                 "path": build_folder_path(folder["folderID"], folders_by_id)
+                if folder["folderID"] in folders_by_id
+                else f"Shared with me / {folder.get('ownerUsername', 'Shared')}",
+                "shared": bool(folder.get("ownerUsername")),
+                "ownerUsername": folder.get("ownerUsername")
             }
-            for folder in filtered_folders
+            for folder in [*filtered_folders, *filtered_shared_folders]
         ],
         "files": [
             {
@@ -608,8 +630,10 @@ async def search_drive(
                 "sizeBytes": file["sizeBytes"],
                 "previewPath": file["previewPath"],
                 "lastModified": file["lastModified"],
-                "path": build_folder_path(file["folderID"], folders_by_id)
+                "path": build_folder_path(file["folderID"], folders_by_id) if file["folderID"] in folders_by_id else f"Shared with me / {file.get('ownerUsername', 'Shared')}",
+                "shared": bool(file.get("ownerUsername")),
+                "ownerUsername": file.get("ownerUsername")
             }
-            for file in filtered_files
+            for file in [*filtered_files, *filtered_shared_files]
         ]
     }

@@ -20,6 +20,8 @@
 - Added login and registration rate limiting.
 - Added configurable secure cookies through `NOSOCIAL_COOKIE_SECURE`.
 - Added automatic public visibility for files added to the `Movies` media folder and its subfolders.
+- Added a single shared `Movies` folder with a stable public ID for all users.
+- Added Windows storage defaulting to `H:/` for local media storage.
 
 ### Changed
 
@@ -31,6 +33,8 @@
 - Changed Docker image dependencies to include `ffmpeg` for media preview generation.
 - Changed upload cleanup to run during application startup.
 - Changed media-folder detection to treat `Movies` case-insensitively for upload and move operations.
+- Changed `Movies` folder handling to use one canonical database folder shared by every user.
+- Changed `Movies` file listing to read from the shared folder ID so every user sees the same uploaded files.
 
 ### Removed
 
@@ -42,6 +46,8 @@
 - Fixed preview behavior for short videos by falling back to the first frame when the 2-second thumbnail frame is unavailable.
 - Fixed stale upload state handling so resumed uploads can skip completed chunks safely.
 - Fixed upload cancel handling to clear active upload IDs.
+- Fixed shared `Movies` folder lookup after a database reset.
+- Fixed files uploaded to `Movies` by one user not appearing for other users.
 
 ### Security
 
@@ -70,6 +76,8 @@ This repository has no Git tags yet, so the historical changelog below is groupe
 
 ### 2026-05-01
 
+- `e9b2bc2` - Added shared `Movies` folder behavior, stable media public ID handling, and Windows `H:/` storage defaults.
+- `e340993` - Added deployment hardening, health checks, backup and optimizer helpers, media previews, and changelog updates.
 - `805aba4` - Optimized DLNA configuration.
 - `8185e59` - Fixed DLNA and folder/file service behavior.
 - `ac75fb1` - Fixed DLNA deployment configuration.

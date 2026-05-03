@@ -45,5 +45,6 @@
 {% block scripts %}
 <script>
   window.__AUTH_ERROR__ = "{{ error|e }}";
+  window.__AUTH_MODE__ = "{{ auth_mode|default('login')|e }}";
 </script>
 {% endblock %}

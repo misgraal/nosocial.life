@@ -7,9 +7,11 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 
-from app.db.files import get_file_by_public_id
+from app.db.files import get_file_by_public_id, is_file_shared_with_user
+from app.db.folders import get_folder_by_id
 from app.security.sesions import get_user_id
 from app.security.passwords import verify_password
+from app.security.share_tokens import create_share_access_token, verify_share_access_token
 from app.services.app import UpdateFileShareSettingsPayload, UpdateFileVisibilityPayload, UploadChunkPayload
 from app.services.files import (
     cancel_upload,
@@ -31,6 +33,7 @@ from app.services.files import (
     set_file_visibility,
     update_file_share_settings,
 )
+from app.services.folders import can_user_access_shared_folder
 from config import COOKIE_SECURE, TEMPLATES_DIR
 
 
@@ -63,7 +66,12 @@ def build_thumbnail_url(file_public_id: str, file_path: Path, file_name: str) ->
 
 
 def has_valid_file_share_cookie(request: Request, file: dict) -> bool:
-    return request.cookies.get(get_share_access_cookie_name(file["publicID"])) == "1"
+    return verify_share_access_token(
+        "file",
+        file["publicID"],
+        file.get("publicPasswordHash"),
+        request.cookies.get(get_share_access_cookie_name(file["publicID"]))
+    )
 
 
 def can_access_file_share(request: Request, user_id: int | None, file: dict) -> bool:
@@ -74,6 +82,30 @@ def can_access_file_share(request: Request, user_id: int | None, file: dict) -> 
     if not is_share_password_required(file):
         return True
     return has_valid_file_share_cookie(request, file)
+
+
+async def has_private_file_access(user_id: int | None, file: dict) -> bool:
+    if not user_id or not file:
+        return False
+    if file["userID"] == user_id:
+        return True
+    if await is_file_shared_with_user(file["fileID"], user_id):
+        return True
+
+    folder = await get_folder_by_id(file["folderID"])
+    return await can_user_access_shared_folder(user_id, folder)
+
+
+async def get_file_access_context(request: Request, user_id: int | None, file_public_id: str) -> tuple[dict | None, bool]:
+    file = await get_file_by_public_id(file_public_id)
+    if not file:
+        return None, False
+
+    has_private_access = await has_private_file_access(user_id, file)
+    if has_private_access or can_access_file_share(request, user_id, file):
+        return file, has_private_access
+
+    return None, False
 
 
 @router.get("/app/files/{publicID}")
@@ -169,7 +201,7 @@ async def unlockFile(request: Request, publicID: str, password: str = Form(...))
     response = RedirectResponse(f"/app/files/{publicID}", status_code=303)
     response.set_cookie(
         get_share_access_cookie_name(publicID),
-        "1",
+        create_share_access_token("file", publicID, file.get("publicPasswordHash")),
         max_age=60 * 60 * 12,
         httponly=True,
         samesite="lax",
@@ -182,11 +214,8 @@ async def unlockFile(request: Request, publicID: str, password: str = Form(...))
 async def getFileContent(request: Request, file_public_id: str):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
-    private_access_file = await get_accessible_file(user_id, file_public_id) if user_id else None
-    file = private_access_file
+    file, _ = await get_file_access_context(request, user_id, file_public_id)
     if not file:
-        file = await get_file_by_public_id(file_public_id)
-    if not file or not (private_access_file or can_access_file_share(request, user_id, file)):
         raise HTTPException(status_code=404, detail="File was not found")
 
     file_path = Path(file["serverPath"])
@@ -206,11 +235,8 @@ async def getFileContent(request: Request, file_public_id: str):
 async def getFileThumbnail(request: Request, file_public_id: str):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
-    private_access_file = await get_accessible_file(user_id, file_public_id) if user_id else None
-    file = private_access_file
+    file, _ = await get_file_access_context(request, user_id, file_public_id)
     if not file:
-        file = await get_file_by_public_id(file_public_id)
-    if not file or not (private_access_file or can_access_file_share(request, user_id, file)):
         raise HTTPException(status_code=404, detail="File was not found")
 
     file_path = Path(file["serverPath"])
@@ -237,11 +263,8 @@ async def getFileThumbnail(request: Request, file_public_id: str):
 async def getFilePreview(request: Request, file_public_id: str):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
-    private_access_file = await get_accessible_file(user_id, file_public_id) if user_id else None
-    file = private_access_file
+    file, _ = await get_file_access_context(request, user_id, file_public_id)
     if not file:
-        file = await get_file_by_public_id(file_public_id)
-    if not file or not (private_access_file or can_access_file_share(request, user_id, file)):
         raise HTTPException(status_code=404, detail="File was not found")
 
     file_path = Path(file["serverPath"])
@@ -336,7 +359,7 @@ async def cancelUpload(request: Request):
     upload_id = data.get("uploadId", "")
 
     try:
-        return await cancel_upload(upload_id)
+        return await cancel_upload(user_id, upload_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -349,7 +372,7 @@ async def getUploadStatus(request: Request, uploadId: str):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        return await get_upload_status(uploadId)
+        return await get_upload_status(user_id, uploadId)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -358,12 +381,8 @@ async def getUploadStatus(request: Request, uploadId: str):
 async def downloadFile(request: Request, file_public_id: str):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
-    private_access_file = await get_accessible_file(user_id, file_public_id) if user_id else None
-    file = private_access_file
+    file, has_private_access = await get_file_access_context(request, user_id, file_public_id)
     if not file:
-        file = await get_file_by_public_id(file_public_id)
-    has_private_access = bool(private_access_file)
-    if not file or not (has_private_access or can_access_file_share(request, user_id, file)):
         raise HTTPException(status_code=404, detail="File was not found")
     if not has_private_access and file["userID"] != user_id and not file.get("publicAllowDownload", True):
         raise HTTPException(status_code=403, detail="Public download is disabled for this file")

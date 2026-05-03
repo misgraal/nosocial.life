@@ -458,7 +458,7 @@
 {% endblock %}
 
 {% block header_actions %}
-  <form action="/logout" method="get">
+  <form action="/logout" method="post">
     <button class="btn logout" type="submit">Logout</button>
   </form>
 {% endblock %}
@@ -747,18 +747,22 @@
           <div class="admin-panel">
             <div class="panel-head">
               <div class="panel-title">Disk usage</div>
-              <div class="panel-meta">{{ disks|length }} configured path(s)</div>
+              <div class="panel-meta">{{ disks|length }} available/configured path(s)</div>
             </div>
 
-            <form class="disk-settings-form" action="/admin/disks" method="post">
-              <div class="panel-meta">Choose which disks can receive new uploads.</div>
+            <form class="disk-settings-form" action="/admin/disks" method="post" data-confirm-disk-selection="Selected disks will be configured for uploads. Movies and temp folders will be created only on selected disks. Continue?">
+              <div class="panel-meta">Choose which disks can receive new uploads. Folders are created only after saving this selection.</div>
               <div class="disk-settings-grid">
                 {% for disk in disks %}
                   <label class="disk-toggle">
                     <input type="checkbox" name="selected_disks" value="{{ disk.path }}" {% if disk.isEnabled %}checked{% endif %}>
                     <div class="disk-toggle-copy">
                       <strong>{{ disk.name }}</strong>
-                      <span>{{ disk.path }}</span>
+                      <span>
+                        {{ disk.path }}
+                        {% if disk.isConfigured %} &middot; configured{% endif %}
+                        {% if not disk.isAvailable %} &middot; unavailable{% endif %}
+                      </span>
                     </div>
                   </label>
                 {% endfor %}
@@ -773,7 +777,11 @@
                 <div class="disk-card">
                   <div class="disk-card-title">
                     <strong>{{ disk.name }}</strong>
-                    <span>{{ disk.path }}</span>
+                    <span>
+                      {{ disk.path }}
+                      {% if disk.isConfigured %} &middot; configured{% endif %}
+                      {% if not disk.isAvailable %} &middot; unavailable{% endif %}
+                    </span>
                   </div>
 
                   <div class="disk-usage">

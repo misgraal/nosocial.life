@@ -6,7 +6,9 @@
   <li class="tree-node{% if node.expanded %} expanded{% else %} collapsed{% endif %}{% if node.active %} active{% endif %}">
     <div class="tree-item">
       <span class="tree-caret"></span>
-      <span class="tree-icon"></span>
+      <span class="tree-icon" aria-hidden="true">
+        <img src="/static/img/folder/icons8-folder-50.png" alt="" loading="lazy" decoding="async">
+      </span>
       <a class="tree-link" href="{{ node.url }}">
         <span class="tree-label">{{ node.folderName }}</span>
       </a>
@@ -369,6 +371,9 @@
       border-radius:10px;
       cursor:pointer;
       font:inherit;
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
 
     .item-context-menu-button:hover{
@@ -377,6 +382,102 @@
 
     .item-context-menu-button.danger{
       color:var(--danger);
+    }
+
+    .menu-icon{
+      width:20px;
+      height:20px;
+      flex:0 0 20px;
+      display:inline-grid;
+      place-items:center;
+      position:relative;
+      color:currentColor;
+    }
+
+    .menu-icon img{
+      width:20px;
+      height:20px;
+      object-fit:contain;
+      transition:filter 180ms ease;
+    }
+
+    :root[data-theme="dark"] .menu-icon img{
+      filter:invert(1);
+    }
+
+    .item-context-menu-button.danger .menu-icon img{
+      filter:none;
+    }
+
+    .menu-icon.download::before{
+      content:"";
+      width:8px;
+      height:12px;
+      border-right:2px solid currentColor;
+      border-bottom:2px solid currentColor;
+      transform:translateY(-2px) rotate(45deg);
+    }
+
+    .menu-icon.visibility::before{
+      content:"";
+      width:16px;
+      height:10px;
+      border:2px solid currentColor;
+      border-radius:50% / 60%;
+    }
+
+    .menu-icon.visibility::after{
+      content:"";
+      position:absolute;
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background:currentColor;
+    }
+
+    .menu-icon.rename::before{
+      content:"";
+      width:14px;
+      height:4px;
+      border-radius:2px;
+      background:currentColor;
+      transform:rotate(-35deg);
+    }
+
+    .menu-icon.rename::after{
+      content:"";
+      position:absolute;
+      right:2px;
+      top:5px;
+      width:4px;
+      height:4px;
+      background:currentColor;
+      clip-path:polygon(0 0, 100% 50%, 0 100%);
+      transform:rotate(-35deg);
+    }
+
+    .menu-icon.move::before{
+      content:"";
+      width:15px;
+      height:12px;
+      border:2px solid currentColor;
+      border-radius:3px;
+    }
+
+    .menu-icon.move::after{
+      content:"";
+      position:absolute;
+      right:1px;
+      width:7px;
+      height:7px;
+      border-right:2px solid currentColor;
+      border-top:2px solid currentColor;
+      transform:rotate(45deg);
+      background:var(--card);
+    }
+
+    .menu-label{
+      min-width:0;
     }
 
     .upload-toast{
@@ -585,6 +686,56 @@
       display:block;
     }
 
+    .tree-caret{
+      width:18px;
+      height:18px;
+      flex:0 0 18px;
+      display:inline-grid;
+      place-items:center;
+      margin:0;
+    }
+
+    .tree-caret::before{
+      width:7px;
+      height:7px;
+      margin:0;
+      border-color:var(--muted);
+      border-width:0 2px 2px 0;
+      transform:rotate(-45deg);
+    }
+
+    .tree-node.expanded > .tree-item .tree-caret::before{
+      margin:0;
+      transform:rotate(45deg) translate(-1px, -1px);
+    }
+
+    .tree-caret.empty::before{
+      content:none;
+      display:none;
+    }
+
+    .tree-icon{
+      width:18px;
+      height:18px;
+      flex:0 0 18px;
+      display:inline-grid;
+      place-items:center;
+      border:0;
+      background:transparent;
+    }
+
+    .tree-icon::before,
+    .tree-icon::after{
+      content:none !important;
+      display:none !important;
+    }
+
+    .tree-icon img{
+      width:18px;
+      height:18px;
+      object-fit:contain;
+    }
+
     .drive-sidebar-links{
       display:flex;
       flex-direction:column;
@@ -665,6 +816,58 @@
       min-width:120px;
     }
 
+    .drive-action-icon{
+      width:44px;
+      min-width:44px;
+      min-height:44px;
+      display:inline-grid;
+      place-items:center;
+      padding:0;
+      border-radius:10px;
+    }
+
+    .drive-action-icon img{
+      width:24px;
+      height:24px;
+      object-fit:contain;
+      transition:filter 180ms ease;
+    }
+
+    :root[data-theme="dark"] .drive-action-icon img{
+      filter:invert(1);
+    }
+
+    .drive-action-icon.primary img{
+      filter:invert(1);
+    }
+
+    .drive-action-icon.upload-folder{
+      position:relative;
+    }
+
+    .drive-action-icon.upload-folder::after{
+      content:"";
+      position:absolute;
+      right:9px;
+      top:8px;
+      width:8px;
+      height:8px;
+      border-left:2px solid currentColor;
+      border-top:2px solid currentColor;
+      transform:rotate(45deg);
+    }
+
+    .drive-action-icon.upload-folder::before{
+      content:"";
+      position:absolute;
+      right:12px;
+      top:8px;
+      width:2px;
+      height:14px;
+      border-radius:999px;
+      background:currentColor;
+    }
+
     .tile-meta{
       flex:1 1 auto;
       min-width:0;
@@ -686,9 +889,165 @@
       width:76px;
       min-height:76px;
       max-height:76px;
-      overflow:hidden;
+      overflow:visible;
       white-space:nowrap;
       text-overflow:ellipsis;
+      position:relative;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+      color:#111318;
+      background:transparent;
+      isolation:isolate;
+    }
+
+    .tile-thumb.folder,
+    .tile-thumb.file{
+      background:transparent;
+    }
+
+    .tile-thumb.folder::before,
+    .tile-thumb.folder::after,
+    .tile-thumb.file::before{
+      content:"";
+      position:absolute;
+      display:block;
+    }
+
+    .tile-thumb.folder::before{
+      left:4px;
+      top:14px;
+      width:68px;
+      height:46px;
+      border-radius:8px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(205,211,219,0.98));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.95),
+        inset 0 -12px 24px rgba(135,145,158,0.18),
+        0 12px 22px rgba(0,0,0,0.28);
+      clip-path:polygon(0 0, 36% 0, 46% 18%, 100% 18%, 100% 100%, 0 100%);
+      z-index:1;
+    }
+
+    .tile-thumb.folder::after{
+      left:9px;
+      top:19px;
+      width:56px;
+      height:14px;
+      border-radius:999px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.54), rgba(255,255,255,0));
+      filter:blur(1px);
+      opacity:0.65;
+      z-index:2;
+    }
+
+    .tile-thumb.file::before{
+      left:16px;
+      top:6px;
+      width:44px;
+      height:58px;
+      border-radius:7px;
+      background:
+        linear-gradient(135deg, transparent 0 15%, rgba(235,239,244,0.98) 15.5%),
+        linear-gradient(135deg, rgba(255,255,255,0.98), rgba(197,204,214,0.98));
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.95),
+        inset 0 -10px 20px rgba(123,133,148,0.18),
+        0 12px 22px rgba(0,0,0,0.28);
+      clip-path:polygon(0 0, 72% 0, 100% 28%, 100% 100%, 0 100%);
+      z-index:1;
+    }
+
+    .tile-thumb.file .file-corner{
+      position:absolute;
+      left:47px;
+      top:7px;
+      width:13px;
+      height:16px;
+      background:linear-gradient(135deg, rgba(255,255,255,0.9), rgba(179,187,199,0.94));
+      clip-path:polygon(0 0, 100% 100%, 0 100%);
+      box-shadow:-1px 1px 0 rgba(0,0,0,0.16);
+      z-index:3;
+    }
+
+    .tile-thumb.file::after{
+      content:attr(data-icon-label);
+      position:absolute;
+      left:0;
+      right:0;
+      top:28px;
+      z-index:4;
+      color:#15171c;
+      font-size:1.55rem;
+      line-height:1;
+      font-weight:800;
+      letter-spacing:0;
+      text-align:center;
+      text-shadow:0 1px 0 rgba(255,255,255,0.45);
+    }
+
+    .tile-thumb.file[data-file-icon="video"]::after{
+      content:"";
+      left:32px;
+      right:auto;
+      top:27px;
+      width:0;
+      height:0;
+      border-top:11px solid transparent;
+      border-bottom:11px solid transparent;
+      border-left:18px solid #15171c;
+      filter:drop-shadow(0 1px 0 rgba(255,255,255,0.32));
+    }
+
+    .tile-thumb.file[data-file-icon="image"]::after{
+      content:"";
+      left:26px;
+      right:auto;
+      top:29px;
+      width:26px;
+      height:18px;
+      background:
+        radial-gradient(circle at 28% 28%, #15171c 0 3px, transparent 3.5px),
+        linear-gradient(135deg, transparent 47%, #15171c 48% 64%, transparent 65%),
+        linear-gradient(45deg, transparent 48%, #15171c 49% 66%, transparent 67%);
+      border-bottom:4px solid #15171c;
+      border-radius:2px;
+    }
+
+    .tile-thumb.file[data-file-icon="audio"]::after{
+      content:"A";
+    }
+
+    .tile-thumb.file[data-file-icon="pdf"]::after{
+      content:"PDF";
+      top:31px;
+      font-size:0.86rem;
+      letter-spacing:0;
+    }
+
+    .tile-thumb.folder::before,
+    .tile-thumb.folder::after,
+    .tile-thumb.file::before,
+    .tile-thumb.file::after,
+    .tile-thumb.file .file-corner{
+      content:none;
+      display:none;
+    }
+
+    .tile-thumb img{
+      position:relative;
+      z-index:2;
+      display:block;
+      width:58px;
+      height:58px;
+      object-fit:contain;
+      filter:drop-shadow(0 10px 18px rgba(0,0,0,0.22));
+      transition:filter 180ms ease;
+    }
+
+    :root[data-theme="dark"] .tile-thumb img{
+      filter:invert(1) drop-shadow(0 10px 18px rgba(0,0,0,0.28));
     }
 
     .search-empty{
@@ -707,15 +1066,19 @@
       display:none;
     }
 
-    .files-list-header{
+    .drive-main{
       --list-thumb-column:56px;
       --list-date-column:minmax(220px, 1.2fr);
       --list-size-column:minmax(110px, 0.6fr);
       --list-kind-column:minmax(140px, 0.8fr);
+      --files-list-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+    }
+
+    .files-list-header{
       display:none;
       align-items:center;
       gap:16px;
-      grid-template-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+      grid-template-columns:var(--files-list-columns);
       padding:0 14px 6px;
       background:var(--app-panel-muted);
       border-radius:10px 10px 0 0;
@@ -842,7 +1205,7 @@
       height:40px;
       min-height:40px;
       display:grid;
-      grid-template-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column) var(--list-kind-column);
+      grid-template-columns:var(--files-list-columns);
       align-items:center;
       column-gap:16px;
       padding:8px 14px;
@@ -876,6 +1239,67 @@
       padding:0 4px;
       font-size:0.62rem;
       font-weight:700;
+    }
+
+    #files-list.view-list .tile-thumb.folder::before{
+      left:1px;
+      top:4px;
+      width:28px;
+      height:17px;
+      border-radius:4px;
+    }
+
+    #files-list.view-list .tile-thumb.folder::after{
+      left:4px;
+      top:7px;
+      width:21px;
+      height:5px;
+    }
+
+    #files-list.view-list .tile-thumb.file::before{
+      left:6px;
+      top:1px;
+      width:18px;
+      height:22px;
+      border-radius:3px;
+    }
+
+    #files-list.view-list .tile-thumb.file .file-corner{
+      left:19px;
+      top:1px;
+      width:6px;
+      height:7px;
+    }
+
+    #files-list.view-list .tile-thumb.file::after{
+      top:9px;
+      font-size:0.66rem;
+    }
+
+    #files-list.view-list .tile-thumb.file[data-file-icon="video"]::after{
+      left:13px;
+      top:9px;
+      border-top-width:5px;
+      border-bottom-width:5px;
+      border-left-width:8px;
+    }
+
+    #files-list.view-list .tile-thumb.file[data-file-icon="image"]::after{
+      left:10px;
+      top:10px;
+      width:11px;
+      height:8px;
+      border-bottom-width:2px;
+    }
+
+    #files-list.view-list .tile-thumb.file[data-file-icon="pdf"]::after{
+      top:10px;
+      font-size:0.42rem;
+    }
+
+    #files-list.view-list .tile-thumb img{
+      width:24px;
+      height:24px;
     }
 
     #files-list.view-list .tile-meta{
@@ -917,9 +1341,14 @@
     }
 
     @media (max-width: 1180px){
-      .files-list-header{
+      .drive-main{
         --list-date-column:minmax(190px, 1fr);
         --list-size-column:minmax(100px, 0.55fr);
+        --files-list-columns:var(--list-thumb-column) minmax(0, 1fr) var(--list-date-column) var(--list-size-column);
+      }
+
+      .files-list-header-meta{
+        grid-column:3 / 5;
       }
 
       .files-list-header-meta{
@@ -1282,7 +1711,7 @@
       main > .container.full-bleed{
         height:auto;
         min-height:calc(100dvh - 58px);
-        padding:10px 10px 96px;
+        padding:8px 8px 92px;
       }
 
       .drive-shell{
@@ -1290,15 +1719,15 @@
         min-height:0;
         display:flex;
         flex-direction:column;
-        gap:10px;
+        gap:8px;
       }
 
       .drive-sidebar{
         order:2;
         width:100%;
-        max-height:34dvh;
-        border-radius:10px;
-        padding:10px;
+        max-height:none;
+        border-radius:12px;
+        padding:8px;
         box-shadow:none;
         border:1px solid var(--app-border-subtle);
       }
@@ -1324,8 +1753,12 @@
         margin-bottom:6px;
       }
 
+      .drive-folder-tree-section{
+        display:none;
+      }
+
       .folder-tree{
-        max-height:23dvh;
+        max-height:28dvh;
         overflow:auto;
       }
 
@@ -1337,16 +1770,16 @@
       .drive-main{
         order:1;
         overflow:visible;
-        gap:10px;
+        gap:8px;
       }
 
       .drive-toolbar{
         position:sticky;
         top:58px;
         z-index:800;
-        padding:10px;
-        gap:10px;
-        border-radius:10px;
+        padding:8px;
+        gap:8px;
+        border-radius:12px;
         box-shadow:none;
         border:1px solid var(--app-border-subtle);
         background:color-mix(in srgb, var(--card) 96%, transparent);
@@ -1356,6 +1789,7 @@
       .drive-nav{
         width:100%;
         gap:8px;
+        align-items:center;
       }
 
       .drive-nav-buttons{
@@ -1364,8 +1798,9 @@
       }
 
       .drive-nav-buttons .icon-btn{
-        width:44px;
+        width:42px;
         min-height:44px;
+        border-radius:10px;
       }
 
       .drive-breadcrumbs{
@@ -1373,6 +1808,7 @@
         overflow-x:auto;
         scrollbar-width:none;
         padding-bottom:2px;
+        font-size:1.25rem;
       }
 
       .drive-breadcrumbs::-webkit-scrollbar{
@@ -1383,12 +1819,11 @@
         width:100%;
         margin-left:0;
         display:grid;
-        grid-template-columns:1fr auto;
+        grid-template-columns:1fr;
         gap:8px;
       }
 
       .drive-sort{
-        grid-column:1 / -1;
         width:100%;
       }
 
@@ -1406,13 +1841,7 @@
       }
 
       .drive-view{
-        display:flex;
-        gap:6px;
-      }
-
-      .drive-view .icon-btn{
-        min-height:44px;
-        min-width:54px;
+        display:none;
       }
 
       .drive-actions{
@@ -1446,7 +1875,7 @@
         bottom:0;
         z-index:850;
         display:grid;
-        grid-template-columns:1fr 1fr;
+        grid-template-columns:repeat(3, minmax(0, 1fr));
         gap:8px;
         padding:10px max(10px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
         border-top:1px solid var(--app-border-subtle);
@@ -1459,7 +1888,12 @@
       }
 
       .drive-cta .btn{
-        min-height:46px;
+        min-height:52px;
+        width:100%;
+        border-radius:12px;
+      }
+
+      .drive-cta .drive-action-icon{
         width:100%;
       }
 
@@ -1472,31 +1906,110 @@
       }
 
       .drive-grid{
-        grid-template-columns:repeat(2, minmax(0, 1fr));
-        gap:10px;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
       }
 
       .drive-tile{
-        min-height:138px;
-        padding:10px;
-        border-radius:10px;
+        width:100%;
+        height:auto;
+        min-height:68px;
+        display:grid;
+        grid-template-columns:52px minmax(0, 1fr);
+        align-items:center;
+        column-gap:12px;
+        padding:10px 12px;
+        border-radius:12px;
+      }
+
+      #files-list.view-list .drive-tile{
+        height:auto;
+        min-height:68px;
+        display:grid;
+        grid-template-columns:52px minmax(0, 1fr);
+        align-items:center;
+        column-gap:12px;
+        row-gap:0;
+        padding:10px 12px;
+        border-radius:12px;
+        border:1px solid rgba(15,23,42,0.06);
+        background:var(--card);
+      }
+
+      #files-list.view-list .drive-tile:nth-of-type(odd){
+        background:var(--card);
       }
 
       .tile-thumb{
-        width:100%;
-        flex-basis:72px;
-        min-height:72px;
-        max-height:72px;
+        align-self:center;
+        grid-column:1;
+        width:48px;
+        min-height:48px;
+        max-height:48px;
+        flex-basis:48px;
+      }
+
+      .tile-thumb img{
+        width:42px;
+        height:42px;
+      }
+
+      #files-list.view-list .tile-thumb{
+        grid-column:1;
+        width:48px;
+        min-height:48px;
+        max-height:48px;
+        flex-basis:48px;
+      }
+
+      #files-list.view-list .tile-thumb img{
+        width:42px;
+        height:42px;
+      }
+
+      .tile-meta{
+        grid-column:2;
+        min-width:0;
+        gap:4px;
+      }
+
+      #files-list.view-list .tile-meta{
+        grid-column:2;
+        min-width:0;
+        display:flex;
+        flex-direction:column;
+        gap:4px;
       }
 
       .tile-name{
-        font-size:0.88rem;
-        line-height:1.25;
+        font-size:0.94rem;
+        line-height:1.22;
         overflow-wrap:anywhere;
+        white-space:normal;
+        display:-webkit-box;
+        -webkit-line-clamp:2;
+        -webkit-box-orient:vertical;
+      }
+
+      #files-list.view-list .tile-name{
+        grid-column:auto;
+        font-size:0.94rem;
+        line-height:1.22;
+        white-space:normal;
       }
 
       .tile-sub{
-        font-size:0.72rem;
+        font-size:0.74rem;
+        line-height:1.25;
+        color:var(--muted);
+      }
+
+      #files-list.view-list .tile-sub{
+        grid-column:auto;
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
       }
 
       .item-context-menu{
@@ -1511,6 +2024,17 @@
 
       .item-context-menu-button{
         min-height:46px;
+      }
+
+      .menu-icon{
+        width:22px;
+        height:22px;
+        flex-basis:22px;
+      }
+
+      .menu-icon img{
+        width:22px;
+        height:22px;
       }
 
       .upload-toast{
@@ -1538,41 +2062,128 @@
       .file-viewer-modal-dialog{
         width:100%;
         height:100dvh;
+        max-height:100dvh;
         border-radius:0;
       }
 
       .file-viewer-modal-header{
+        align-items:stretch;
+        flex-direction:column;
+        gap:10px;
         padding:12px 14px;
+      }
+
+      .file-viewer-modal-title{
+        font-size:1rem;
+      }
+
+      .file-viewer-modal-meta{
+        gap:6px;
+        margin-top:8px;
+      }
+
+      .file-viewer-modal-chip{
+        padding:5px 8px;
+        font-size:0.76rem;
+      }
+
+      .file-viewer-modal-actions{
+        width:100%;
+        display:grid;
+        grid-template-columns:1fr 1fr 42px;
+        gap:8px;
+        padding-right:0;
+      }
+
+      .file-viewer-modal-actions .btn,
+      .file-viewer-modal-actions .modal-close{
+        min-height:42px;
       }
 
       .file-viewer-modal-body{
         padding:12px;
+        min-height:0;
+        flex:1;
       }
 
-      .file-viewer-actions{
-        gap:6px;
+      .file-viewer-frame,
+      .file-viewer-image,
+      .file-viewer-video{
+        border-radius:10px;
+        max-height:calc(100dvh - 170px);
+      }
+
+      .file-viewer-stage{
+        min-height:calc(100dvh - 190px);
+      }
+
+      .preview-media-actions,
+      .file-viewer-media-actions{
+        position:sticky;
+        bottom:0;
+        background:var(--card);
+        padding-top:8px;
+      }
+
+      .file-viewer-text{
+        border-radius:10px;
+        padding:12px;
+        font-size:0.82rem;
       }
     }
 
     @media (max-width: 420px){
       .drive-grid{
-        grid-template-columns:1fr;
+        display:flex;
+        flex-direction:column;
       }
 
       .drive-toolbar-right{
         grid-template-columns:1fr;
       }
 
-      .drive-view{
-        width:100%;
-      }
-
-      .drive-view .icon-btn{
-        flex:1;
-      }
-
       .drive-filters{
         grid-template-columns:1fr;
+      }
+
+      .drive-breadcrumbs{
+        font-size:1.1rem;
+      }
+
+      .drive-tile{
+        grid-template-columns:46px minmax(0, 1fr);
+        column-gap:10px;
+        padding:9px 10px;
+      }
+
+      #files-list.view-list .drive-tile{
+        grid-template-columns:46px minmax(0, 1fr);
+        column-gap:10px;
+        padding:9px 10px;
+      }
+
+      .tile-thumb{
+        width:44px;
+        min-height:44px;
+        max-height:44px;
+        flex-basis:44px;
+      }
+
+      .tile-thumb img{
+        width:38px;
+        height:38px;
+      }
+
+      #files-list.view-list .tile-thumb{
+        width:44px;
+        min-height:44px;
+        max-height:44px;
+        flex-basis:44px;
+      }
+
+      #files-list.view-list .tile-thumb img{
+        width:38px;
+        height:38px;
       }
     }
   </style>
@@ -1580,7 +2191,7 @@
 
 {% block header_actions %}
   {% if request.cookies.get('session_id') %}
-  <form action="/logout" method="get">
+  <form action="/logout" method="post">
     <button class="btn logout" type="submit">Logout</button>
   </form>
   {% endif %}
@@ -1596,9 +2207,10 @@
       <div class="drive-sidebar-links">
         <a class="drive-sidebar-link{% if not is_shared_mode and not read_only %} active{% endif %}" href="/app/home">My Drive</a>
         <a class="drive-sidebar-link{% if is_shared_mode %} active{% endif %}" href="/app/shared">Shared with me</a>
+        <a class="drive-sidebar-link" href="/app/sessions">Sessions</a>
       </div>
       {% endif %}
-      <div class="drive-section">
+      <div class="drive-section drive-folder-tree-section">
         <div class="drive-section-title">Folders</div>
         <ul class="folder-tree">
           {{ render_tree_node(folder_tree) }}
@@ -1657,9 +2269,15 @@
       <div class="drive-actions">
         <div class="drive-cta">
           <button id="delete-selected" class="btn secondary" type="button" disabled>Delete</button>
-          <button id="new-folder" class="btn secondary" type="button">New folder</button>
-          <button id="upload-btn" class="btn primary" type="button">Upload file</button>
-          <button id="upload-folder-btn" class="btn secondary" type="button">Upload folder</button>
+          <button id="new-folder" class="btn secondary drive-action-icon" type="button" aria-label="New folder" title="New folder">
+            <img src="/static/img/folder/icons8-add-folder-50.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+          </button>
+          <button id="upload-btn" class="btn primary drive-action-icon" type="button" aria-label="Upload file" title="Upload file">
+            <img src="/static/img/files/icons8-add-file-50.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+          </button>
+          <button id="upload-folder-btn" class="btn secondary drive-action-icon upload-folder" type="button" aria-label="Upload folder" title="Upload folder">
+            <img src="/static/img/folder/icons8-folder-50.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+          </button>
         </div>
       </div>
 
@@ -1702,8 +2320,9 @@
           data-folder-public-expires-at="{{ folder['publicExpiresAt'] or '' }}"
           data-folder-name="{{ folder['folderName'] }}"
           data-folder-modified="{{ folder['lastModified'] }}"
+          data-folder-shared="{{ 'true' if folder.get('shared') else 'false' }}"
         >
-          <div class="tile-thumb folder">DIR</div>
+          <div class="tile-thumb folder" aria-hidden="true"><img src="/static/img/folder/icons8-folder-50.png" alt="" loading="lazy" decoding="async"></div>
           <div class="tile-meta">
             <div class="tile-name">{{ folder["folderName"] }}</div>
             <div class="tile-list-column modified">{{ folder["lastModified"] }}</div>
@@ -1724,8 +2343,9 @@
           data-file-name="{{ file['fileName'] }}"
           data-file-size-bytes="{{ file['sizeBytes'] }}"
           data-file-modified="{{ file['lastModified'] }}"
+          data-file-shared="{{ 'true' if file.get('shared') else 'false' }}"
         > <!--selected-->
-          <div class="tile-thumb image">FILE</div>
+          <div class="tile-thumb file" data-file-icon="file" data-icon-label="FILE" aria-hidden="true"><img src="/static/img/files/icons8-document-50.png" alt="" loading="lazy" decoding="async"></div>
           <div class="tile-meta">
             <div class="tile-name">{{ file["fileName"] }}</div>
             <div class="tile-list-column modified">{{ file["lastModified"] }}</div>
@@ -1981,13 +2601,34 @@
   </div>
 
   <div id="item-context-menu" class="item-context-menu" hidden>
-    <button id="context-download-action" class="item-context-menu-button" type="button">Download</button>
-    <button id="context-visibility-action" class="item-context-menu-button" type="button">Make public</button>
-    <button id="context-copy-public-link-action" class="item-context-menu-button" type="button">Copy public link</button>
-    <button id="context-share-settings-action" class="item-context-menu-button" type="button">Share settings</button>
-    <button id="context-rename-action" class="item-context-menu-button" type="button">Rename</button>
-    <button id="context-move-action" class="item-context-menu-button" type="button">Move to</button>
-    <button id="context-delete-action" class="item-context-menu-button danger" type="button">Remove</button>
+    <button id="context-download-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon download" aria-hidden="true"></span>
+      <span class="menu-label">Download</span>
+    </button>
+    <button id="context-visibility-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon visibility" aria-hidden="true"></span>
+      <span class="menu-label">Make public</span>
+    </button>
+    <button id="context-copy-public-link-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon" aria-hidden="true"><img src="/static/img/files/icons8-copy-50.png" alt="" loading="lazy" decoding="async"></span>
+      <span class="menu-label">Copy public link</span>
+    </button>
+    <button id="context-share-settings-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon" aria-hidden="true"><img src="/static/img/files/icons8-file-settings-50.png" alt="" loading="lazy" decoding="async"></span>
+      <span class="menu-label">Share settings</span>
+    </button>
+    <button id="context-rename-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon rename" aria-hidden="true"></span>
+      <span class="menu-label">Rename</span>
+    </button>
+    <button id="context-move-action" class="item-context-menu-button" type="button">
+      <span class="menu-icon move" aria-hidden="true"></span>
+      <span class="menu-label">Move to</span>
+    </button>
+    <button id="context-delete-action" class="item-context-menu-button danger" type="button">
+      <span class="menu-icon" aria-hidden="true"><img src="/static/img/files/icons8-trash-can-50.png" alt="" loading="lazy" decoding="async"></span>
+      <span class="menu-label">Remove</span>
+    </button>
   </div>
 {% endblock %}
 
@@ -2132,6 +2773,10 @@
         type: ['type-asc', 'type-desc']
       };
 
+      function isMobileViewport() {
+        return window.matchMedia && window.matchMedia('(max-width: 760px)').matches;
+      }
+
       if(!driveShell || !newFolderButton || !deleteSelectedButton || !uploadButton || !uploadFolderButton || !fileSearchInput || !sortSelect || !gridViewToggle || !listViewToggle || !navBackButton || !navForwardButton || !modal || !uploadModal || !warningModal || !renameModal || !moveModal || !shareModal || !fileViewerModal || !form || !uploadForm || !renameForm || !moveForm || !shareForm || !folderNameInput || !uploadFileInput || !uploadFileLabel || !uploadFolderInput || !renameInput || !moveTargetSelect || !sharePublicCheckbox || !shareExpiresAtInput || !sharePasswordInput || !shareClearPasswordCheckbox || !shareUsersInput || !shareAllowDownloadCheckbox || !shareFileDownloadField || !itemContextMenu || !contextDownloadAction || !contextVisibilityAction || !contextCopyPublicLinkAction || !contextShareSettingsAction || !contextRenameAction || !contextMoveAction || !contextDeleteAction || !closeWarningButton || !closeRenameButton || !closeMoveButton || !closeShareButton || !closeFileViewerButton || !warningModalTitle || !warningModalMessage || !warningCancelButton || !warningConfirmButton || !uploadTitle || !renameSubmitButton || !moveSubmitButton || !shareSubmitButton || !shareErrorBox || !searchEmptyState || !previewStage || !fileViewerStage || !fileViewerTitle || !fileViewerMeta || !fileViewerRawLink || !fileViewerDownloadLink || !previewAccess){
         return;
       }
@@ -2271,6 +2916,11 @@
         uploadProgressPercent.textContent = `${safeProgress}%`;
         uploadProgressTitle.textContent = title;
         uploadProgressMeta.textContent = meta;
+      }
+
+      function showAppToast(state, title, meta, delay) {
+        updateUploadToast(state === 'success' ? 100 : 0, state || 'idle', title, meta || '');
+        hideUploadToastLater(delay || 2800);
       }
 
       function setUploadState(uploading) {
@@ -2948,20 +3598,37 @@
         itemContextMenu.hidden = true;
       }
 
+      function setMenuActionLabel(action, label) {
+        const labelNode = action ? action.querySelector('.menu-label') : null;
+        if (labelNode) {
+          labelNode.textContent = label;
+          return;
+        }
+
+        if (action) {
+          action.textContent = label;
+        }
+      }
+
       function openItemContextMenu(clientX, clientY) {
-        const selectedCount = getSelectedTiles().length;
+        const selectedTiles = getSelectedTiles();
+        const selectedCount = selectedTiles.length;
         const selectedTile = getSingleSelectedTile();
-        const selectedFileTile = getSingleSelectedFileTile();
-        contextDownloadAction.hidden = !selectedFileTile;
-        contextVisibilityAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile;
+        const hasSharedSelection = selectedTiles.some(isSharedTile);
+        const canDownloadSelectedTile = selectedCount === 1 && selectedTile && (
+          selectedTile.classList.contains('file') || selectedTile.classList.contains('folder')
+        );
+        contextDownloadAction.hidden = !canDownloadSelectedTile;
+        setMenuActionLabel(contextDownloadAction, selectedTile && selectedTile.classList.contains('folder') ? 'Download ZIP' : 'Download');
+        contextVisibilityAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile || isSharedTile(selectedTile);
         contextCopyPublicLinkAction.hidden = selectedCount !== 1 || !selectedTile || !isTilePublic(selectedTile);
-        contextShareSettingsAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile;
-        contextVisibilityAction.textContent = selectedTile && isTilePublic(selectedTile) ? 'Make private' : 'Make public';
-        contextRenameAction.hidden = isReadOnly || selectedCount !== 1;
-        contextMoveAction.hidden = isReadOnly;
-        contextDeleteAction.hidden = isReadOnly;
-        contextMoveAction.textContent = selectedCount > 1 ? `Move ${selectedCount} items` : 'Move to';
-        contextDeleteAction.textContent = selectedCount > 1 ? `Remove ${selectedCount} items` : 'Remove';
+        contextShareSettingsAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile || isSharedTile(selectedTile);
+        setMenuActionLabel(contextVisibilityAction, selectedTile && isTilePublic(selectedTile) ? 'Make private' : 'Make public');
+        contextRenameAction.hidden = isReadOnly || selectedCount !== 1 || !selectedTile || isSharedTile(selectedTile);
+        contextMoveAction.hidden = isReadOnly || hasSharedSelection;
+        contextDeleteAction.hidden = isReadOnly || hasSharedSelection;
+        setMenuActionLabel(contextMoveAction, selectedCount > 1 ? `Move ${selectedCount} items` : 'Move to');
+        setMenuActionLabel(contextDeleteAction, selectedCount > 1 ? `Remove ${selectedCount} items` : 'Remove');
 
         itemContextMenu.hidden = false;
 
@@ -3024,8 +3691,9 @@
           const result = await deleteSelectedItems();
           removeDeletedTiles(result);
           closeItemContextMenu();
+          showAppToast('success', 'Items deleted', 'Selection was removed');
         } catch (error) {
-          window.alert(error.message || 'Failed to delete selected items');
+          showAppToast('error', 'Delete failed', error.message || 'Failed to delete selected items');
         }
       });
       contextDeleteAction.addEventListener('click', function(){
@@ -3034,7 +3702,7 @@
       });
       contextDownloadAction.addEventListener('click', function(){
         closeItemContextMenu();
-        downloadSelectedFile();
+        downloadSelectedItem();
       });
       contextVisibilityAction.addEventListener('click', async function(){
         closeItemContextMenu();
@@ -3048,7 +3716,7 @@
             await copyTextToClipboard(getPublicFolderUrl(result.folder.publicID));
           }
         } catch (error) {
-          window.alert(error.message || 'Failed to update item access');
+          showAppToast('error', 'Access update failed', error.message || 'Failed to update item access');
         }
       });
       contextCopyPublicLinkAction.addEventListener('click', async function(){
@@ -3056,8 +3724,9 @@
 
         try {
           await copySelectedPublicItemLink();
+          showAppToast('success', 'Link copied', 'Public link is in the clipboard');
         } catch (error) {
-          window.alert(error.message || 'Failed to copy public link');
+          showAppToast('error', 'Copy failed', error.message || 'Failed to copy public link');
         }
       });
       contextShareSettingsAction.addEventListener('click', function(){
@@ -3231,6 +3900,125 @@
         return extension.slice(0, 6);
       }
 
+      function getFileExtension(fileName) {
+        if (!fileName || !fileName.includes('.')) {
+          return '';
+        }
+
+        return fileName.split('.').pop().trim().toLowerCase();
+      }
+
+      function getFileIconInfo(fileName) {
+        const extension = getFileExtension(fileName);
+        const extensionIcons = {
+          '7z': 'icons8-7zip-50.png',
+          aac: 'icons8-aac-50.png',
+          avi: 'icons8-avi-50.png',
+          css: 'icons8-css-filetype-50.png',
+          csv: 'icons8-csv-50.png',
+          dll: 'icons8-dll-50.png',
+          dng: 'icons8-dng-50.png',
+          doc: 'icons8-doc-50.png',
+          docx: 'icons8-doc-50.png',
+          dwg: 'icons8-dwg-50.png',
+          eps: 'icons8-eps-50.png',
+          exe: 'icons8-exe-50.png',
+          flv: 'icons8-flv-50.png',
+          gif: 'icons8-gif-50.png',
+          heic: 'icons8-heic-filetype-50.png',
+          html: 'icons8-html-filetype-50.png',
+          htm: 'icons8-html-filetype-50.png',
+          java: 'icons8-java-file-50.png',
+          jpg: 'icons8-jpg-50.png',
+          jpeg: 'icons8-jpg-50.png',
+          json: 'icons8-json-50.png',
+          log: 'icons8-log-50.png',
+          mov: 'icons8-mov-50.png',
+          mp3: 'icons8-mp3-50.png',
+          mp4: 'icons8-video-file-50.png',
+          mpg: 'icons8-mpg-50.png',
+          mpeg: 'icons8-mpg-50.png',
+          ogg: 'icons8-ogg-50.png',
+          otf: 'icons8-otf-50.png',
+          pdf: 'icons8-pdf-50.png',
+          png: 'icons8-png-50.png',
+          ppt: 'icons8-ppt-50.png',
+          pptx: 'icons8-ppt-50.png',
+          ps: 'icons8-ps-50.png',
+          psd: 'icons8-psd-50.png',
+          py: 'icons8-python-file-50.png',
+          rar: 'icons8-rar-50.png',
+          raw: 'icons8-raw-50.png',
+          svg: 'icons8-image-file-50.png',
+          tar: 'icons8-tar-50.png',
+          tif: 'icons8-tif-50.png',
+          tiff: 'icons8-tif-50.png',
+          ttf: 'icons8-ttf-50.png',
+          txt: 'icons8-txt-50.png',
+          wav: 'icons8-wav-50.png',
+          webm: 'icons8-video-file-50.png',
+          webp: 'icons8-webp-50.png',
+          wma: 'icons8-wma-50.png',
+          woff: 'icons8-woff-50.png',
+          xls: 'icons8-xls-50.png',
+          xlsx: 'icons8-xls-50.png',
+          xml: 'icons8-xml-file-50.png',
+          zip: 'icons8-zip-50.png'
+        };
+        const imageExtensions = new Set(['bmp', 'j2k', 'jp2']);
+        const videoExtensions = new Set(['m4v', 'mkv']);
+        const audioExtensions = new Set(['flac', 'm4a']);
+        const spreadsheetExtensions = new Set(['ods', 'tsv']);
+
+        if (extensionIcons[extension]) {
+          return {kind: extension || 'file', label: getFileExtensionLabel(fileName), src: `/static/img/files/${extensionIcons[extension]}`};
+        }
+        if (imageExtensions.has(extension)) {
+          return {kind: 'image', label: getFileExtensionLabel(fileName), src: '/static/img/files/icons8-image-file-50.png'};
+        }
+        if (videoExtensions.has(extension)) {
+          return {kind: 'video', label: getFileExtensionLabel(fileName), src: '/static/img/files/icons8-video-file-50.png'};
+        }
+        if (audioExtensions.has(extension)) {
+          return {kind: 'audio', label: getFileExtensionLabel(fileName), src: '/static/img/files/icons8-audio-file-50.png'};
+        }
+        if (spreadsheetExtensions.has(extension)) {
+          return {kind: 'spreadsheet', label: getFileExtensionLabel(fileName), src: '/static/img/files/icons8-spreadsheet-file-50.png'};
+        }
+
+        return {kind: 'file', label: getFileExtensionLabel(fileName), src: '/static/img/files/icons8-document-50.png'};
+      }
+
+      function applyFolderIcon(tileThumb) {
+        if (!tileThumb) {
+          return;
+        }
+
+        tileThumb.className = 'tile-thumb folder';
+        tileThumb.removeAttribute('data-file-icon');
+        tileThumb.removeAttribute('data-icon-label');
+        tileThumb.setAttribute('aria-hidden', 'true');
+        tileThumb.innerHTML = '<img src="/static/img/folder/icons8-folder-50.png" alt="" loading="lazy" decoding="async">';
+      }
+
+      function applyFileIcon(tileThumb, fileName) {
+        if (!tileThumb) {
+          return;
+        }
+
+        const iconInfo = getFileIconInfo(fileName);
+        tileThumb.className = 'tile-thumb file';
+        tileThumb.dataset.fileIcon = iconInfo.kind;
+        tileThumb.dataset.iconLabel = iconInfo.label;
+        tileThumb.setAttribute('aria-hidden', 'true');
+        tileThumb.innerHTML = `<img src="${escapeHtml(iconInfo.src)}" alt="" loading="lazy" decoding="async">`;
+      }
+
+      function getFileThumbMarkup(fileName) {
+        const iconInfo = getFileIconInfo(fileName);
+        return `<div class="tile-thumb file" data-file-icon="${escapeHtml(iconInfo.kind)}" data-icon-label="${escapeHtml(iconInfo.label)}" aria-hidden="true"><img src="${escapeHtml(iconInfo.src)}" alt="" loading="lazy" decoding="async"></div>`;
+      }
+
       function getFileTypeLabel(fileName) {
         const extensionLabel = getFileExtensionLabel(fileName);
         if (extensionLabel === 'FILE') {
@@ -3254,6 +4042,18 @@
         }
 
         return tile.classList.contains('folder') ? isFolderPublic(tile) : isFilePublic(tile);
+      }
+
+      function isSharedTile(tile) {
+        if (!tile) {
+          return false;
+        }
+
+        if (tile.classList.contains('folder')) {
+          return String(tile.dataset.folderShared || '').toLowerCase() === 'true';
+        }
+
+        return String(tile.dataset.fileShared || '').toLowerCase() === 'true';
       }
 
       function getTilePublicExpiresAt(tile) {
@@ -3306,6 +4106,10 @@
         return `/app/api/files/${filePublicId}/download`;
       }
 
+      function getFolderDownloadUrl(folderPublicId) {
+        return `/app/api/folders/${folderPublicId}/download`;
+      }
+
       function getPdfEmbedUrl(rawFileUrl) {
         if (!rawFileUrl) {
           return rawFileUrl;
@@ -3348,6 +4152,11 @@
 
       function setPreviewStageMarkup(markup) {
         previewStage.innerHTML = markup;
+      }
+
+      function isPreviewPanelVisible() {
+        const previewPanel = previewStage ? previewStage.closest('.drive-preview') : null;
+        return Boolean(previewPanel && window.getComputedStyle(previewPanel).display !== 'none');
       }
 
       function renderPreviewMessage(message) {
@@ -3681,9 +4490,10 @@
       }
 
       function getFolderMetaMarkup(folder) {
-        const modified = getFormattedModified(folder.lastModified || '');
+        const folderName = escapeHtml(folder.folderName || '');
+        const modified = escapeHtml(getFormattedModified(folder.lastModified || ''));
         return `
-          <div class="tile-name">${folder.folderName}</div>
+          <div class="tile-name">${folderName}</div>
           <div class="tile-list-column modified">${modified}</div>
           <div class="tile-list-column size">--</div>
           <div class="tile-list-column type">Folder</div>
@@ -3692,11 +4502,12 @@
       }
 
       function getFileMetaMarkup(file) {
-        const modified = getFormattedModified(file.lastModified || '');
-        const sizeLabel = formatBytes(Number(file.sizeBytes || 0));
-        const typeLabel = getFileTypeLabel(file.fileName || '');
+        const fileName = escapeHtml(file.fileName || '');
+        const modified = escapeHtml(getFormattedModified(file.lastModified || ''));
+        const sizeLabel = escapeHtml(formatBytes(Number(file.sizeBytes || 0)));
+        const typeLabel = escapeHtml(getFileTypeLabel(file.fileName || ''));
         return `
-          <div class="tile-name">${file.fileName}</div>
+          <div class="tile-name">${fileName}</div>
           <div class="tile-list-column modified">${modified}</div>
           <div class="tile-list-column size">${sizeLabel}</div>
           <div class="tile-list-column type">${typeLabel}</div>
@@ -3715,7 +4526,7 @@
           const tileThumb = tile.querySelector('.tile-thumb');
 
           if (tileThumb) {
-            tileThumb.textContent = 'DIR';
+            applyFolderIcon(tileThumb);
           }
 
           if (!tileMeta) {
@@ -3736,7 +4547,7 @@
           const tileThumb = tile.querySelector('.tile-thumb');
 
           if (tileThumb) {
-            tileThumb.textContent = getFileExtensionLabel(fileName);
+            applyFileIcon(tileThumb, fileName);
           }
 
           if (!tileMeta) {
@@ -3793,6 +4604,7 @@
           publicID: folder.publicID,
           public: Boolean(folder.public),
           publicExpiresAt: folder.publicExpiresAt || '',
+          shared: Boolean(folder.shared),
           folderName: folder.folderName,
           lastModified: folder.lastModified
         };
@@ -3816,6 +4628,7 @@
           public: Boolean(file.public),
           publicExpiresAt: file.publicExpiresAt || '',
           publicAllowDownload: file.publicAllowDownload !== false,
+          shared: Boolean(file.shared),
           fileName: file.fileName,
           sizeBytes: Number(file.sizeBytes || 0),
           lastModified: file.lastModified
@@ -3840,6 +4653,7 @@
           publicID: tile.dataset.folderPublicId || '',
           public: isFolderPublic(tile),
           publicExpiresAt: tile.dataset.folderPublicExpiresAt || '',
+          shared: isSharedTile(tile),
           folderName: tile.dataset.folderName || '',
           lastModified: tile.dataset.folderModified || ''
         };
@@ -3851,6 +4665,7 @@
           public: isFilePublic(tile),
           publicExpiresAt: tile.dataset.filePublicExpiresAt || '',
           publicAllowDownload: fileAllowsPublicDownload(tile),
+          shared: isSharedTile(tile),
           fileName: tile.dataset.fileName || '',
           sizeBytes: Number(tile.dataset.fileSizeBytes || 0),
           lastModified: tile.dataset.fileModified || ''
@@ -3897,13 +4712,14 @@
           <div
             class="drive-tile folder"
             draggable="true"
-            data-folder-public-id="${folder.publicID}"
+            data-folder-public-id="${escapeHtml(folder.publicID || '')}"
             data-folder-public="${folder.public ? 'true' : 'false'}"
-            data-folder-public-expires-at="${folder.publicExpiresAt || ''}"
-            data-folder-name="${folder.folderName}"
-            data-folder-modified="${folder.lastModified}"
+            data-folder-public-expires-at="${escapeHtml(folder.publicExpiresAt || '')}"
+            data-folder-shared="${folder.shared ? 'true' : 'false'}"
+            data-folder-name="${escapeHtml(folder.folderName || '')}"
+            data-folder-modified="${escapeHtml(folder.lastModified || '')}"
           >
-            <div class="tile-thumb folder">DIR</div>
+            <div class="tile-thumb folder" aria-hidden="true"><img src="/static/img/folder/icons8-folder-50.png" alt="" loading="lazy" decoding="async"></div>
             <div class="tile-meta">
               ${getFolderMetaMarkup(folder)}
             </div>
@@ -3916,15 +4732,16 @@
           <div
             class="drive-tile file"
             draggable="true"
-            data-file-public-id="${file.publicID}"
+            data-file-public-id="${escapeHtml(file.publicID || '')}"
             data-file-public="${file.public ? 'true' : 'false'}"
-            data-file-public-expires-at="${file.publicExpiresAt || ''}"
+            data-file-public-expires-at="${escapeHtml(file.publicExpiresAt || '')}"
             data-file-public-allow-download="${file.publicAllowDownload === false ? 'false' : 'true'}"
-            data-file-name="${file.fileName}"
-            data-file-size-bytes="${file.sizeBytes}"
-            data-file-modified="${file.lastModified}"
+            data-file-shared="${file.shared ? 'true' : 'false'}"
+            data-file-name="${escapeHtml(file.fileName || '')}"
+            data-file-size-bytes="${escapeHtml(file.sizeBytes || 0)}"
+            data-file-modified="${escapeHtml(file.lastModified || '')}"
           >
-            <div class="tile-thumb image">${getFileExtensionLabel(file.fileName)}</div>
+            ${getFileThumbMarkup(file.fileName)}
             <div class="tile-meta">
               ${getFileMetaMarkup(file)}
             </div>
@@ -4041,7 +4858,9 @@
                 publicExpiresAt: folder.publicExpiresAt || '',
                 folderName: folder.folderName,
                 lastModified: folder.lastModified,
-                path: folder.path || ''
+                path: folder.path || '',
+                shared: Boolean(folder.shared),
+                ownerUsername: folder.ownerUsername || ''
               };
             }),
             ...(data.files || []).map(function(file){
@@ -4054,7 +4873,9 @@
                 fileName: file.fileName,
                 sizeBytes: Number(file.sizeBytes || 0),
                 lastModified: file.lastModified,
-                path: file.path || ''
+                path: file.path || '',
+                shared: Boolean(file.shared),
+                ownerUsername: file.ownerUsername || ''
               };
             })
           ];
@@ -4349,12 +5170,22 @@
         return selectedTile;
       }
 
+      function getSingleSelectedFolderTile() {
+        const selectedTile = getSingleSelectedTile();
+        if (!selectedTile || !selectedTile.classList.contains('folder')) {
+          return null;
+        }
+
+        return selectedTile;
+      }
+
       function updateSelectionActions() {
         if (!deleteSelectedButton) {
           return;
         }
 
-        deleteSelectedButton.disabled = getSelectedTiles().length === 0;
+        const selectedTiles = getSelectedTiles();
+        deleteSelectedButton.disabled = selectedTiles.length === 0 || selectedTiles.some(isSharedTile);
       }
 
       function clearSelectedTiles() {
@@ -4448,7 +5279,11 @@
           previewAccess.textContent = getFileAccessLabel(fileTile);
         }
 
-        loadFilePreview(fileTile);
+        if (isPreviewPanelVisible()) {
+          loadFilePreview(fileTile);
+        } else {
+          previewRequestId += 1;
+        }
       }
 
       function updateSelectionPreview() {
@@ -4562,6 +5397,10 @@
       }
 
       async function deleteSelectedItems() {
+        if (getSelectedTiles().some(isSharedTile)) {
+          throw new Error('Shared items cannot be removed from here');
+        }
+
         const response = await fetch('/app/api/delete-items', {
           method: 'POST',
           headers: {
@@ -4582,6 +5421,9 @@
         const selectedTile = getSingleSelectedTile();
         if (!selectedTile) {
           throw new Error('Select one item to rename');
+        }
+        if (isSharedTile(selectedTile)) {
+          throw new Error('Shared items cannot be renamed');
         }
 
         const payload = {
@@ -4611,6 +5453,10 @@
       }
 
       async function moveSelectedItems(destinationPublicId) {
+        if (getSelectedTiles().some(isSharedTile)) {
+          throw new Error('Shared items cannot be moved');
+        }
+
         const response = await fetch('/app/api/move-items', {
           method: 'POST',
           headers: {
@@ -4826,7 +5672,30 @@
           return;
         }
 
-        window.location.href = `/app/api/files/${filePublicId}/download`;
+        window.location.href = getFileDownloadUrl(filePublicId);
+      }
+
+      function downloadSelectedFolder() {
+        const selectedFolderTile = getSingleSelectedFolderTile();
+        if (!selectedFolderTile) {
+          return;
+        }
+
+        const folderPublicId = selectedFolderTile.dataset.folderPublicId || '';
+        if (!folderPublicId) {
+          return;
+        }
+
+        window.location.href = getFolderDownloadUrl(folderPublicId);
+      }
+
+      function downloadSelectedItem() {
+        if (getSingleSelectedFolderTile()) {
+          downloadSelectedFolder();
+          return;
+        }
+
+        downloadSelectedFile();
       }
 
       function applyFolderDataToTile(tile, folder) {
@@ -4842,13 +5711,14 @@
         tile.dataset.folderPublicId = folder.publicID;
         tile.dataset.folderPublic = folder.public ? 'true' : 'false';
         tile.dataset.folderPublicExpiresAt = folder.publicExpiresAt || '';
+        tile.dataset.folderShared = folder.shared ? 'true' : 'false';
         tile.dataset.folderName = folder.folderName;
         tile.dataset.folderModified = folder.lastModified;
 
         const thumbNode = tile.querySelector('.tile-thumb');
         const metaNode = tile.querySelector('.tile-meta');
         if (thumbNode) {
-          thumbNode.textContent = 'DIR';
+          applyFolderIcon(thumbNode);
         }
         if (metaNode) {
           metaNode.innerHTML = getFolderMetaMarkup(folder);
@@ -4872,6 +5742,7 @@
         tile.dataset.filePublic = file.public ? 'true' : 'false';
         tile.dataset.filePublicExpiresAt = file.publicExpiresAt || '';
         tile.dataset.filePublicAllowDownload = file.publicAllowDownload === false ? 'false' : 'true';
+        tile.dataset.fileShared = file.shared ? 'true' : 'false';
         tile.dataset.fileName = file.fileName;
         tile.dataset.fileSizeBytes = String(file.sizeBytes);
         tile.dataset.fileModified = file.lastModified;
@@ -4879,7 +5750,7 @@
         const thumbNode = tile.querySelector('.tile-thumb');
         const metaNode = tile.querySelector('.tile-meta');
         if (thumbNode) {
-          thumbNode.textContent = getFileExtensionLabel(file.fileName);
+          applyFileIcon(thumbNode, file.fileName);
         }
         if (metaNode) {
           metaNode.innerHTML = getFileMetaMarkup(file);
@@ -5152,6 +6023,10 @@
         if (tileIndex !== -1) {
           selectionAnchorIndex = tileIndex;
         }
+
+        if (isMobileViewport()) {
+          openFile(tile);
+        }
       });
 
       filesList.addEventListener('contextmenu', function(event){
@@ -5206,6 +6081,12 @@
         }
 
         draggedTiles = getSelectedTiles();
+        if (draggedTiles.some(isSharedTile)) {
+          event.preventDefault();
+          draggedTiles = [];
+          return;
+        }
+
         clearDropTarget();
         closeItemContextMenu();
 
@@ -5279,7 +6160,7 @@
           try {
             await processUploadEntries(droppedFiles);
           } catch (error) {
-            window.alert(error.message || 'Failed to upload dropped files');
+            showAppToast('error', 'Upload failed', error.message || 'Failed to upload dropped files');
           }
           return;
         }
@@ -5297,8 +6178,9 @@
         try {
           const result = await moveDraggedItems(folderTile.dataset.folderPublicId || '');
           removeMovedTiles(result);
+          showAppToast('success', 'Items moved', 'Selection was moved');
         } catch (error) {
-          window.alert(error.message || 'Failed to move items');
+          showAppToast('error', 'Move failed', error.message || 'Failed to move items');
         } finally {
           draggedTiles = [];
         }
@@ -5332,7 +6214,7 @@
         try {
           await processUploadEntries(clipboardFiles);
         } catch (error) {
-          window.alert(error.message || 'Failed to upload pasted files');
+          showAppToast('error', 'Upload failed', error.message || 'Failed to upload pasted files');
         }
       });
 
@@ -5530,6 +6412,7 @@
 
           renderFolder(folder);
           closeModal();
+          showAppToast('success', 'Folder created', folder.folderName || 'New folder is ready');
         } catch (error) {
           renderError(error.message || 'Failed to create folder');
         }
@@ -5567,7 +6450,7 @@
         try {
           await processUploadEntries(files);
         } catch (error) {
-          window.alert(error.message || 'Failed to upload folder');
+          showAppToast('error', 'Upload failed', error.message || 'Failed to upload folder');
         } finally {
           uploadFolderInput.value = '';
         }
@@ -5600,6 +6483,7 @@
           }
           updateSelectionPreview();
           closeRenameModal();
+          showAppToast('success', 'Item renamed', newName);
         } catch (error) {
           renderRenameError(error.message || 'Failed to rename item');
         } finally {
@@ -5626,6 +6510,7 @@
           const result = await moveSelectedItems(destinationPublicId);
           removeMovedTiles(result);
           closeMoveModal();
+          showAppToast('success', 'Items moved', 'Selection was moved');
         } catch (error) {
           renderMoveError(error.message || 'Failed to move items');
         } finally {
@@ -5669,6 +6554,7 @@
             );
           }
           closeShareModal();
+          showAppToast('success', 'Sharing updated', result.publicUrl ? 'Public link copied when available' : 'Access settings saved');
         } catch (error) {
           shareErrorBox.textContent = error.message || 'Failed to update share settings';
           shareErrorBox.hidden = false;

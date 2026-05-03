@@ -9,7 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from app.db.admin import get_user_by_id, get_user_storage_usage, get_upload_disk_settings
+from app.db.admin import (
+    get_storage_usage_for_disk_path,
+    get_user_by_id,
+    get_user_storage_usage,
+    get_upload_disk_settings,
+)
 from app.db.app import create_audit_log
 from app.db.files import (
     create_file_db,
@@ -81,38 +86,15 @@ def get_disk_device_id(disk_path: str) -> int | None:
         return None
 
 
-def get_directory_used_space(disk_path: str) -> int:
-    root_path = Path(disk_path)
-    if not root_path.exists():
-        return 0
-
-    total_size = 0
-    for file_path in root_path.rglob("*"):
-        if not file_path.is_file():
-            continue
-
-        try:
-            total_size += file_path.stat().st_size
-        except OSError:
-            continue
-
-    return total_size
-
-
 async def get_enabled_upload_disks() -> list[str]:
     disk_settings = await get_upload_disk_settings()
-    enabled_disks = [disk["diskPath"] for disk in disk_settings if disk["isEnabled"]]
-
-    if enabled_disks:
-        return enabled_disks
-
-    return DISKS
+    return [disk["diskPath"] for disk in disk_settings if disk["isEnabled"]]
 
 
 async def select_upload_disk(file_size: int) -> str:
     available_disks = await get_enabled_upload_disks()
     if not available_disks:
-        raise ValueError("Upload disks are not configured")
+        raise ValueError("No upload disk is enabled. Open Admin > Disk usage, select a disk, and save the selection.")
 
     candidates = []
     for disk_path in available_disks:
@@ -123,12 +105,12 @@ async def select_upload_disk(file_size: int) -> str:
         candidates.append({
             "path": disk_path,
             "freeSpace": free_space,
-            "usedSpace": get_directory_used_space(disk_path),
+            "usedSpace": await get_storage_usage_for_disk_path(disk_path),
             "deviceId": get_disk_device_id(disk_path)
         })
 
     if not candidates:
-        raise ValueError("No upload disk has enough free space")
+        raise ValueError("No enabled upload disk has enough free space for this file.")
 
     unique_device_ids = {candidate["deviceId"] for candidate in candidates}
     if len(unique_device_ids) == 1:
@@ -141,21 +123,22 @@ async def select_upload_disk(file_size: int) -> str:
     return candidates[0]["path"]
 
 
-def get_existing_upload(upload_id: str):
+def get_existing_upload(upload_id: str, user_id: int | None = None):
     for upload in upload_list:
-        if upload["uploadId"] == upload_id:
+        if upload["uploadId"] == upload_id and (user_id is None or upload.get("userID") == user_id):
             return upload
 
     return None
 
 
-async def get_or_create_upload(upload_id: str, file_size: int):
-    upload = get_existing_upload(upload_id)
+async def get_or_create_upload(user_id: int, upload_id: str, file_size: int):
+    upload = get_existing_upload(upload_id, user_id)
     if upload:
         return upload
 
     upload = {
         "uploadId": upload_id,
+        "userID": user_id,
         "uploadDisk": await select_upload_disk(file_size)
     }
     upload_list.append(upload)
@@ -319,13 +302,13 @@ def remove_upload_from_memory(upload: dict):
         upload_list.remove(upload)
 
 
-async def cancel_upload(upload_id: str) -> dict:
+async def cancel_upload(user_id: int, upload_id: str) -> dict:
     validate_upload_id(upload_id)
-    cancelled_upload_ids.add(upload_id)
+    cancelled_upload_ids.add((user_id, upload_id))
 
     matching_uploads = [
         upload for upload in upload_list
-        if upload["uploadId"] == upload_id
+        if upload["uploadId"] == upload_id and upload.get("userID") == user_id
     ]
     for upload in matching_uploads:
         remove_upload_from_memory(upload)
@@ -346,7 +329,7 @@ async def cancel_upload(upload_id: str) -> dict:
     return {"status": "cancelled", "uploadId": upload_id}
 
 
-async def get_upload_status(upload_id: str) -> dict:
+async def get_upload_status(user_id: int, upload_id: str) -> dict:
     validate_upload_id(upload_id)
     temp_root_name = Path(tmpFolder).name
     candidate_disks = {
@@ -355,7 +338,7 @@ async def get_upload_status(upload_id: str) -> dict:
         if is_platform_compatible_disk_path(disk_path)
     }
 
-    matching_upload = get_existing_upload(upload_id)
+    matching_upload = get_existing_upload(upload_id, user_id)
     if matching_upload:
         candidate_disks.add(matching_upload["uploadDisk"])
 
@@ -622,17 +605,18 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     await cleanup_stale_upload_chunks()
     validate_chunk_payload(payload)
 
-    upload = await get_or_create_upload(payload.upload_id, payload.file_size)
+    upload = await get_or_create_upload(user_id, payload.upload_id, payload.file_size)
     temp_dir, final_dir = build_upload_paths(upload)
     safe_file_name = Path(payload.file_name).name
 
-    if payload.upload_id in cancelled_upload_ids:
+    upload_cancel_key = (user_id, payload.upload_id)
+    if upload_cancel_key in cancelled_upload_ids:
         cleanup_temp_chunks(temp_dir)
         remove_upload_from_memory(upload)
         raise ValueError("Upload was cancelled")
 
     save_chunk(temp_dir, payload, chunk_bytes)
-    if payload.upload_id in cancelled_upload_ids:
+    if upload_cancel_key in cancelled_upload_ids:
         cleanup_temp_chunks(temp_dir)
         remove_upload_from_memory(upload)
         raise ValueError("Upload was cancelled")
@@ -703,7 +687,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
 
     cleanup_temp_chunks(temp_dir)
     remove_upload_from_memory(upload)
-    cancelled_upload_ids.discard(payload.upload_id)
+    cancelled_upload_ids.discard(upload_cancel_key)
 
     return {
         "status": "completed",
@@ -748,7 +732,7 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
     for file_public_id in payload.file_public_ids:
         file = await get_user_file_by_public_id(user_id, file_public_id)
         if not file:
-            continue
+            raise ValueError("File was not found or you do not have permission to delete it")
 
         delete_physical_file(file["serverPath"])
         await delete_file_db(user_id, file["fileID"])
@@ -768,7 +752,7 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
 
         folder = await get_user_folder_by_public_id(user_id, folder_public_id)
         if not folder:
-            continue
+            raise ValueError("Folder was not found or you do not have permission to delete it")
 
         folder_ids, files_to_delete = await collect_folder_delete_data(folder["folderID"])
         for file in files_to_delete:

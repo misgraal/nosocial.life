@@ -20,6 +20,13 @@ async def get_folders_child_files(folderID):
     )
 
 
+async def get_folders_child_files_for_download(folderID):
+    return await fetch_all(
+        f"select {FILE_DETAIL_FIELDS} from files where folderID=%s order by fileName asc, fileID asc",
+        (folderID,)
+    )
+
+
 async def get_public_media_files(media_dirs: list[str]):
     if not media_dirs:
         return []
