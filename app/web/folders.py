@@ -22,6 +22,7 @@ from app.services.folders import (
     get_folder_share_access_cookie_name,
     get_move_targets,
     get_public_folder_content,
+    get_public_folder_ancestor,
     get_shared_folder_content,
     get_shared_root_content,
     is_public_folder_accessible,
@@ -69,6 +70,12 @@ def can_access_folder_share(request: Request, user_id: int | None, folder: dict)
     if not folder.get("publicPasswordHash"):
         return True
     return has_valid_folder_share_cookie(request, folder)
+
+
+async def can_access_public_folder_tree(request: Request, user_id: int | None, folder: dict | None) -> bool:
+    return bool(await get_public_folder_ancestor(
+        folder, lambda ancestor: can_access_folder_share(request, user_id, ancestor)
+    ))
 
 
 @router.post("/app/api/create-folder")
@@ -148,14 +155,17 @@ async def folders(request: Request, publicID: str):
 
     if items is None:
         public_folder = await get_folder_by_public_id(publicID)
-        if public_folder and is_public_folder_accessible(public_folder) and not can_access_folder_share(request, user_id, public_folder):
+        public_ancestor = await get_public_folder_ancestor(public_folder)
+        if not public_ancestor:
+            return RedirectResponse("/app/home" if user_id else "/", status_code=303)
+        if not await can_access_public_folder_tree(request, user_id, public_folder):
             return templates.TemplateResponse(
                 "share_unlock.html",
                 {
                     "request": request,
                     "item_type": "folder",
-                    "item_name": public_folder["folderName"],
-                    "unlock_action": f"/app/folders/{publicID}/unlock",
+                    "item_name": public_ancestor["folderName"],
+                    "unlock_action": f"/app/folders/{public_ancestor['publicID']}/unlock",
                     "back_url": "/app/home" if user_id else "/",
                     "error": None
                 }
@@ -249,7 +259,7 @@ async def downloadFolder(request: Request, folder_public_id: str):
             or await can_user_access_shared_folder(user_id, folder)
         )
     )
-    if not has_private_access and not can_access_folder_share(request, user_id, folder):
+    if not has_private_access and not await can_access_public_folder_tree(request, user_id, folder):
         raise HTTPException(status_code=404, detail="Folder was not found")
 
     root_name, folder_entries, file_entries = await collect_folder_zip_entries(

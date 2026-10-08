@@ -33,7 +33,8 @@ from app.services.files import (
     set_file_visibility,
     update_file_share_settings,
 )
-from app.services.folders import can_user_access_shared_folder
+from app.services.folders import can_user_access_shared_folder, get_public_folder_ancestor
+from app.web.folders import can_access_public_folder_tree
 from config import COOKIE_SECURE, TEMPLATES_DIR
 
 
@@ -102,7 +103,11 @@ async def get_file_access_context(request: Request, user_id: int | None, file_pu
         return None, False
 
     has_private_access = await has_private_file_access(user_id, file)
-    if has_private_access or can_access_file_share(request, user_id, file):
+    if (
+        has_private_access
+        or can_access_file_share(request, user_id, file)
+        or await can_access_public_folder_tree(request, user_id, await get_folder_by_id(file["folderID"]))
+    ):
         return file, has_private_access
 
     return None, False
@@ -119,6 +124,15 @@ async def openFile(request: Request, publicID: str):
         raise HTTPException(status_code=404, detail="File was not found")
 
     if not can_access_file_share(request, user_id, file):
+        accessible_file, _ = await get_file_access_context(request, user_id, publicID)
+        if accessible_file:
+            return await render_file_view(request, file)
+        if not is_public_file_accessible(file):
+            folder = await get_folder_by_id(file["folderID"])
+            ancestor = await get_public_folder_ancestor(folder)
+            if ancestor:
+                return RedirectResponse(f"/app/folders/{ancestor['publicID']}", status_code=303)
+            raise HTTPException(status_code=404, detail="File was not found")
         return templates.TemplateResponse(
             "share_unlock.html",
             {
@@ -131,6 +145,11 @@ async def openFile(request: Request, publicID: str):
             }
         )
 
+    return await render_file_view(request, file)
+
+
+async def render_file_view(request: Request, file: dict):
+    publicID = file["publicID"]
     file_path = Path(file["serverPath"])
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail="File is missing on disk")

@@ -238,7 +238,7 @@ async def create_folder(folderName, userID, url: str):
 
     folder = await create_folder_db(folderName, userID, parentFolderID)
     parent_folder = await get_folder_by_id(parentFolderID)
-    if parent_folder and parent_folder.get("public"):
+    if parent_folder and await is_media_folder(parent_folder):
         folder_row = await get_folder_id_by_public_id(folder["publicID"])
         folder = await update_folder_public_db(userID, folder_row["folderID"], True)
 
@@ -544,6 +544,18 @@ def is_public_folder_accessible(folder: dict) -> bool:
     return expires_at >= datetime.now()
 
 
+async def get_public_folder_ancestor(folder: dict | None, can_access=None) -> dict | None:
+    """Find an active public folder granting access to this subtree."""
+    visited = set()
+    while folder and folder["folderID"] not in visited:
+        visited.add(folder["folderID"])
+        if is_public_folder_accessible(folder) and (can_access is None or can_access(folder)):
+            return folder
+        parent_id = folder["parentFolderID"]
+        folder = await get_folder_by_id(parent_id) if parent_id is not None else None
+    return None
+
+
 def is_public_file_row_accessible(file_row: dict) -> bool:
     if not file_row or not file_row.get("public"):
         return False
@@ -638,7 +650,6 @@ async def get_folder_share_settings(user_id: int, folder_public_id: str) -> dict
 
 async def build_public_folder_tree_node(folder: dict, active_folder_id: int) -> dict:
     child_folders = await get_folders_child_folders(folder["folderID"])
-    public_child_folders = [child_folder for child_folder in child_folders if is_public_folder_accessible(child_folder)]
 
     return {
         "folderID": folder["folderID"],
@@ -650,26 +661,18 @@ async def build_public_folder_tree_node(folder: dict, active_folder_id: int) -> 
         "expanded": True,
         "children": [
             await build_public_folder_tree_node(child_folder, active_folder_id)
-            for child_folder in public_child_folders
+            for child_folder in child_folders
         ]
     }
 
 
 async def get_public_folder_content(publicID: str) -> folderContent:
     folder = await get_folder_by_public_id(publicID)
-    if not folder or not is_public_folder_accessible(folder):
+    if not folder or not await get_public_folder_ancestor(folder):
         raise ValueError("Folder was not found")
 
-    child_folders = [
-        child_folder
-        for child_folder in await get_folders_child_folders(folder["folderID"])
-        if is_public_folder_accessible(child_folder)
-    ]
-    child_files = [
-        child_file
-        for child_file in await get_folders_child_files(folder["folderID"])
-        if is_public_file_row_accessible(child_file)
-    ]
+    child_folders = await get_folders_child_folders(folder["folderID"])
+    child_files = await get_folders_child_files(folder["folderID"])
     breadcrumbs = [{
         "label": folder["folderName"],
         "url": f"/app/folders/{folder['publicID']}",
@@ -716,9 +719,6 @@ async def collect_folder_zip_entries(folder: dict, include_private: bool) -> tup
     async def collect(current_folder: dict, current_zip_path: str):
         child_folders = await get_folders_child_folders(current_folder["folderID"])
         for child_folder in child_folders:
-            if not include_private and not is_public_folder_accessible(child_folder):
-                continue
-
             folder_name = sanitize_zip_name(child_folder["folderName"], "folder")
             child_zip_path = get_unique_zip_path(f"{current_zip_path}/{folder_name}", used_paths)
             folder_entries.append(child_zip_path)
@@ -726,8 +726,6 @@ async def collect_folder_zip_entries(folder: dict, include_private: bool) -> tup
 
         child_files = await get_folders_child_files_for_download(current_folder["folderID"])
         for child_file in child_files:
-            if not include_private and not is_public_file_row_accessible(child_file):
-                continue
             if not include_private and not child_file.get("publicAllowDownload", True):
                 continue
 

@@ -47,7 +47,7 @@ from app.db.folders import (
 )
 from app.services.app import DeleteItemsPayload, UploadChunkPayload
 from app.services.app import normalize_share_expires_at, parse_python_datetime, resolve_share_recipient_users
-from app.services.folders import can_user_access_shared_folder
+from app.services.folders import can_user_access_shared_folder, get_public_folder_ancestor
 from app.security.passwords import hash_password
 from config import DISKS, MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID, RUNTIME_DIR, tmpFolder
 
@@ -274,8 +274,7 @@ async def should_folder_be_public_after_upload(parent_folder_id: int | None, fol
     parent_parts = await get_folder_path_parts(parent_folder_id)
     is_root_child = len(parent_parts) == 1
     return (
-        await is_public_upload_folder(parent_folder_id)
-        or await is_media_folder_tree(parent_folder_id)
+        await is_media_folder_tree(parent_folder_id)
         or (is_root_child and is_media_folder_name(folder_name))
     )
 
@@ -515,7 +514,11 @@ async def get_accessible_file(user_id: int | None, file_public_id: str):
                 return file
 
     file = await get_file_by_public_id(file_public_id)
-    if not file or not is_public_file_accessible(file):
+    if not file:
+        return None
+    if not is_public_file_accessible(file) and not await get_public_folder_ancestor(
+        await get_folder_by_id(file["folderID"])
+    ):
         return None
 
     return file
@@ -667,7 +670,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
         bytes_written,
         str(final_path)
     )
-    if await is_public_upload_folder(folder_id) or await is_media_folder_tree(folder_id):
+    if await is_media_folder_tree(folder_id):
         created_file = await get_user_file_by_public_id(user_id, file["publicID"])
         file = await update_file_public_db(user_id, created_file["fileID"], True)
 
