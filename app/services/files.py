@@ -1,3 +1,4 @@
+from dataclasses import replace
 import csv
 import hashlib
 import mimetypes
@@ -158,6 +159,10 @@ def build_upload_paths(upload: dict):
 
 def validate_chunk_payload(payload: UploadChunkPayload):
     validate_upload_id(payload.upload_id)
+    if payload.file_size < 0 or payload.chunk_size < 0:
+        raise ValueError("Invalid file or chunk size")
+    if Path(payload.file_name).name in {"", ".", ".."}:
+        raise ValueError("Invalid file name")
     if payload.chunk_index < 0 or payload.total_chunks < 1 or payload.chunk_index >= payload.total_chunks:
         raise ValueError("Invalid chunk metadata")
     if payload.chunk_start is not None:
@@ -303,7 +308,13 @@ def remove_upload_from_memory(upload: dict):
 
 async def cancel_upload(user_id: int, upload_id: str) -> dict:
     validate_upload_id(upload_id)
+<<<<<<< Updated upstream
     cancelled_upload_ids.add((user_id, upload_id))
+=======
+    client_upload_id = upload_id
+    upload_id = f"{user_id}_{upload_id}"
+    cancelled_upload_ids.add(upload_id)
+>>>>>>> Stashed changes
 
     matching_uploads = [
         upload for upload in upload_list
@@ -325,11 +336,13 @@ async def cancel_upload(user_id: int, upload_id: str) -> dict:
         if temp_dir.exists():
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    return {"status": "cancelled", "uploadId": upload_id}
+    return {"status": "cancelled", "uploadId": client_upload_id}
 
 
 async def get_upload_status(user_id: int, upload_id: str) -> dict:
     validate_upload_id(upload_id)
+    client_upload_id = upload_id
+    upload_id = f"{user_id}_{upload_id}"
     temp_root_name = Path(tmpFolder).name
     candidate_disks = {
         disk_path
@@ -365,7 +378,7 @@ async def get_upload_status(user_id: int, upload_id: str) -> dict:
                 pass
 
     return {
-        "uploadId": upload_id,
+        "uploadId": client_upload_id,
         "exists": exists,
         "completedChunks": sorted(completed_chunks),
         "uploadedBytes": uploaded_bytes,
@@ -513,6 +526,7 @@ async def get_accessible_file(user_id: int | None, file_public_id: str):
             if await can_user_access_shared_folder(user_id, folder):
                 return file
 
+<<<<<<< Updated upstream
     file = await get_file_by_public_id(file_public_id)
     if not file:
         return None
@@ -522,6 +536,9 @@ async def get_accessible_file(user_id: int | None, file_public_id: str):
         return None
 
     return file
+=======
+    return None
+>>>>>>> Stashed changes
 
 
 async def get_file_shared_usernames(file_id: int) -> list[str]:
@@ -542,6 +559,7 @@ async def get_file_share_settings(user_id: int, file_public_id: str) -> dict:
 
 async def resolve_upload_folder_id(user_id: int, folder_public_id: str | None) -> int:
     if folder_public_id:
+<<<<<<< Updated upstream
         if folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
             folder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
             if folder:
@@ -560,6 +578,11 @@ async def resolve_upload_folder_id(user_id: int, folder_public_id: str | None) -
         folder = await get_user_folder_id_by_public_id(user_id, folder_public_id)
         if not folder:
             raise ValueError("Upload folder was not found")
+=======
+        folder = await get_user_folder_by_public_id(user_id, folder_public_id)
+        if not folder:
+            raise ValueError("Folder was not found")
+>>>>>>> Stashed changes
         return folder["folderID"]
 
     root_folder = await get_users_root_folder(user_id)
@@ -607,6 +630,8 @@ async def ensure_nested_upload_folders(user_id: int, base_folder_id: int, relati
 async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_bytes: bytes) -> dict:
     await cleanup_stale_upload_chunks()
     validate_chunk_payload(payload)
+    client_upload_id = payload.upload_id
+    payload = replace(payload, upload_id=f"{user_id}_{payload.upload_id}")
 
     upload = await get_or_create_upload(user_id, payload.upload_id, payload.file_size)
     temp_dir, final_dir = build_upload_paths(upload)
@@ -627,14 +652,17 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
     if not payload.is_last_chunk:
         return {
             "status": "chunk_saved",
-            "uploadId": payload.upload_id,
+            "uploadId": client_upload_id,
             "chunkIndex": payload.chunk_index,
             "totalChunks": payload.total_chunks
         }
 
     if payload.chunk_start is None:
         assert_no_missing_chunks(temp_dir, payload.total_chunks)
-        bytes_written = payload.file_size
+        bytes_written = sum(
+            (temp_dir / f"{index:08d}.part").stat().st_size
+            for index in range(payload.total_chunks)
+        )
     else:
         assert_no_missing_chunks(temp_dir, payload.total_chunks, marker_suffix=".done")
         streamed_upload_path = get_streamed_upload_path(temp_dir)
@@ -694,7 +722,7 @@ async def handle_chunk_upload(user_id: int, payload: UploadChunkPayload, chunk_b
 
     return {
         "status": "completed",
-        "uploadId": payload.upload_id,
+        "uploadId": client_upload_id,
         "fileName": safe_file_name,
         "mimeType": payload.mime_type,
         "fileSize": bytes_written,

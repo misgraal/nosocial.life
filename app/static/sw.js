@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 const CACHE_NAME = "nosocial-shell-v4";
+=======
+const CACHE_NAME = "nosocial-shell-v2";
+>>>>>>> Stashed changes
 const SHELL_ASSETS = [
   "/static/css/styles.css",
   "/static/js/main.js",
@@ -47,6 +51,7 @@ self.addEventListener("fetch", function(event) {
   }
 
   event.respondWith(
+<<<<<<< Updated upstream
     caches.match(request).then(function(cachedResponse) {
       if (cachedResponse) {
         return cachedResponse;
@@ -63,6 +68,20 @@ self.addEventListener("fetch", function(event) {
         });
 
         return networkResponse;
+=======
+    fetch(request, { cache: "no-cache" }).then(function(response) {
+      if (response.ok) {
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then(function(cache) {
+          return cache.put(request, copy);
+        }));
+      }
+      return response;
+    }).catch(function(error) {
+      return caches.match(request).then(function(cachedResponse) {
+        if (cachedResponse) return cachedResponse;
+        throw error;
+>>>>>>> Stashed changes
       });
     })
   );

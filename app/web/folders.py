@@ -1,7 +1,11 @@
+<<<<<<< Updated upstream
 import unicodedata
 from pathlib import Path
 from urllib.parse import quote
 
+=======
+from app.security.share_tokens import create_share_token, verify_share_token
+>>>>>>> Stashed changes
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -54,12 +58,16 @@ def cleanup_temporary_file(path: str):
 
 
 def has_valid_folder_share_cookie(request: Request, folder: dict) -> bool:
+<<<<<<< Updated upstream
     return verify_share_access_token(
         "folder",
         folder["publicID"],
         folder.get("publicPasswordHash"),
         request.cookies.get(get_folder_share_access_cookie_name(folder["publicID"]))
     )
+=======
+    return verify_share_token(request.cookies.get(get_folder_share_access_cookie_name(folder["publicID"])), "folder", folder)
+>>>>>>> Stashed changes
 
 
 def can_access_folder_share(request: Request, user_id: int | None, folder: dict) -> bool:
@@ -222,7 +230,11 @@ async def unlockFolder(request: Request, publicID: str, password: str = Form(...
     response = RedirectResponse(f"/app/folders/{publicID}", status_code=303)
     response.set_cookie(
         get_folder_share_access_cookie_name(publicID),
+<<<<<<< Updated upstream
         create_share_access_token("folder", publicID, folder.get("publicPasswordHash")),
+=======
+        create_share_token("folder", folder),
+>>>>>>> Stashed changes
         max_age=60 * 60 * 12,
         httponly=True,
         samesite="lax",

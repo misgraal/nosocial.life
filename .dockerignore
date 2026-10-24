@@ -15,3 +15,5 @@ venv/
 
 example/
 .DS_Store
+
+serverOut.md

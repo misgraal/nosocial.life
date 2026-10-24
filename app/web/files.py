@@ -1,3 +1,4 @@
+from app.security.share_tokens import create_share_token, verify_share_token
 import unicodedata
 from pathlib import Path
 from urllib.parse import quote
@@ -67,12 +68,16 @@ def build_thumbnail_url(file_public_id: str, file_path: Path, file_name: str) ->
 
 
 def has_valid_file_share_cookie(request: Request, file: dict) -> bool:
+<<<<<<< Updated upstream
     return verify_share_access_token(
         "file",
         file["publicID"],
         file.get("publicPasswordHash"),
         request.cookies.get(get_share_access_cookie_name(file["publicID"]))
     )
+=======
+    return verify_share_token(request.cookies.get(get_share_access_cookie_name(file["publicID"])), "file", file)
+>>>>>>> Stashed changes
 
 
 def can_access_file_share(request: Request, user_id: int | None, file: dict) -> bool:
@@ -117,12 +122,16 @@ async def get_file_access_context(request: Request, user_id: int | None, file_pu
 async def openFile(request: Request, publicID: str):
     sid = request.cookies.get("session_id")
     user_id = get_user_id(sid)
-    file = await get_accessible_file(user_id, publicID) if user_id else await get_accessible_file(None, publicID)
+    private_access_file = await get_accessible_file(user_id, publicID) if user_id else None
+    file = private_access_file or await get_file_by_public_id(publicID)
+    if not private_access_file and file and not is_public_file_accessible(file):
+        file = None
     if not file:
         if not user_id:
             return RedirectResponse("/", status_code=303)
         raise HTTPException(status_code=404, detail="File was not found")
 
+<<<<<<< Updated upstream
     if not can_access_file_share(request, user_id, file):
         accessible_file, _ = await get_file_access_context(request, user_id, publicID)
         if accessible_file:
@@ -133,6 +142,9 @@ async def openFile(request: Request, publicID: str):
             if ancestor:
                 return RedirectResponse(f"/app/folders/{ancestor['publicID']}", status_code=303)
             raise HTTPException(status_code=404, detail="File was not found")
+=======
+    if not private_access_file and not can_access_file_share(request, user_id, file):
+>>>>>>> Stashed changes
         return templates.TemplateResponse(
             "share_unlock.html",
             {
@@ -220,7 +232,11 @@ async def unlockFile(request: Request, publicID: str, password: str = Form(...))
     response = RedirectResponse(f"/app/files/{publicID}", status_code=303)
     response.set_cookie(
         get_share_access_cookie_name(publicID),
+<<<<<<< Updated upstream
         create_share_access_token("file", publicID, file.get("publicPasswordHash")),
+=======
+        create_share_token("file", file),
+>>>>>>> Stashed changes
         max_age=60 * 60 * 12,
         httponly=True,
         samesite="lax",
@@ -245,7 +261,10 @@ async def getFileContent(request: Request, file_public_id: str):
         path=str(file_path),
         media_type=get_file_media_type(file["fileName"]),
         headers={
-            "Content-Disposition": build_content_disposition("inline", file["fileName"])
+            "Content-Disposition": build_content_disposition("inline", file["fileName"]),
+            "Content-Security-Policy": "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store"
         }
     )
 
