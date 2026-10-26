@@ -50,7 +50,8 @@ class SecurityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_locked_public_endpoints_reject_logged_in_stranger(self):
         with patch.object(web, 'get_user_id', return_value=99), \
-             patch.object(web, 'get_accessible_file', AsyncMock(return_value=None)), \
+             patch.object(web, 'is_file_shared_with_user', AsyncMock(return_value=False)), \
+             patch.object(web, 'get_folder_by_id', AsyncMock(return_value=None)), \
              patch.object(web, 'get_file_by_public_id', AsyncMock(return_value=self.item)):
             for endpoint in [web.getFileContent, web.getFileThumbnail, web.getFilePreview, web.downloadFile]:
                 with self.assertRaises(HTTPException) as error:
@@ -65,7 +66,7 @@ class SecurityTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.NamedTemporaryFile(suffix='.html') as handle:
             self.item['serverPath'] = handle.name
             with patch.object(web, 'get_user_id', return_value=1), \
-                 patch.object(web, 'get_accessible_file', AsyncMock(return_value=self.item)):
+                 patch.object(web, 'get_file_by_public_id', AsyncMock(return_value=self.item)):
                 response = await web.getFileContent(request(True), 'abc')
                 self.assertIn('sandbox;', response.headers['content-security-policy'])
                 self.assertNotIn('allow-scripts', response.headers['content-security-policy'])
@@ -106,8 +107,8 @@ class SecurityTests(unittest.IsolatedAsyncioTestCase):
             create.assert_not_awaited()
 
     async def test_upload_destination_requires_ownership(self):
-        with patch.object(service, 'get_user_folder_by_public_id', AsyncMock(return_value=None)):
-            with self.assertRaisesRegex(ValueError, 'Folder was not found'):
+        with patch.object(service, 'get_user_folder_id_by_public_id', AsyncMock(return_value=None)):
+            with self.assertRaisesRegex(ValueError, 'Upload folder was not found'):
                 await service.resolve_upload_folder_id(99, 'someone-elses-folder')
 
     async def test_explicit_recipient_keeps_private_access(self):

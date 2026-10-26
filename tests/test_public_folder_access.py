@@ -73,7 +73,7 @@ class PublicFolderAccessTests(unittest.IsolatedAsyncioTestCase):
         file, private = await file_web.get_file_access_context(self.request(), 20, "file")
         self.assertEqual(file, self.file)
         self.assertFalse(private)
-        self.assertEqual(await file_service.get_accessible_file(None, "file"), self.file)
+        self.assertIsNone(await file_service.get_accessible_file(None, "file"))
         response = await file_web.openFile(self.request(), "file")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.template.name, "file_viewer.html")

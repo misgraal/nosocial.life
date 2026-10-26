@@ -1,9 +1,3 @@
-<<<<<<< Updated upstream
-import hashlib
-import hmac
-import secrets
-from pathlib import Path
-=======
 """Signed, expiring share grants bound to the current share password."""
 import hashlib
 import hmac
@@ -12,43 +6,10 @@ import os
 import secrets
 import time
 import tempfile
->>>>>>> Stashed changes
 
 from config import RUNTIME_DIR
 
 
-<<<<<<< Updated upstream
-SECRET_FILE = RUNTIME_DIR / "share_cookie_secret"
-
-
-def get_share_cookie_secret() -> str:
-    SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    if SECRET_FILE.exists():
-        secret = SECRET_FILE.read_text(encoding="utf-8").strip()
-        if secret:
-            return secret
-
-    secret = secrets.token_urlsafe(48)
-    SECRET_FILE.write_text(secret, encoding="utf-8")
-    return secret
-
-
-def create_share_access_token(item_type: str, public_id: str, password_hash: str | None) -> str:
-    message = f"{item_type}:{public_id}:{password_hash or ''}".encode("utf-8")
-    return hmac.new(
-        get_share_cookie_secret().encode("utf-8"),
-        message,
-        hashlib.sha256
-    ).hexdigest()
-
-
-def verify_share_access_token(item_type: str, public_id: str, password_hash: str | None, token: str | None) -> bool:
-    if not token:
-        return False
-
-    expected_token = create_share_access_token(item_type, public_id, password_hash)
-    return hmac.compare_digest(str(token), expected_token)
-=======
 def _load_key() -> bytes:
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     key_path = RUNTIME_DIR / "share-signing.key"
@@ -91,4 +52,11 @@ def verify_share_token(token: str | None, kind: str, item: dict) -> bool:
         return time.time() < expires and hmac.compare_digest(signature, _signature(kind, item, expires))
     except (ValueError, TypeError):
         return False
->>>>>>> Stashed changes
+
+
+def create_share_access_token(item_type: str, public_id: str, password_hash: str | None) -> str:
+    return create_share_token(item_type, {"publicID": public_id, "publicPasswordHash": password_hash})
+
+
+def verify_share_access_token(item_type: str, public_id: str, password_hash: str | None, token: str | None) -> bool:
+    return verify_share_token(token, item_type, {"publicID": public_id, "publicPasswordHash": password_hash})

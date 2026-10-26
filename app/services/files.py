@@ -308,13 +308,9 @@ def remove_upload_from_memory(upload: dict):
 
 async def cancel_upload(user_id: int, upload_id: str) -> dict:
     validate_upload_id(upload_id)
-<<<<<<< Updated upstream
-    cancelled_upload_ids.add((user_id, upload_id))
-=======
     client_upload_id = upload_id
     upload_id = f"{user_id}_{upload_id}"
-    cancelled_upload_ids.add(upload_id)
->>>>>>> Stashed changes
+    cancelled_upload_ids.add((user_id, upload_id))
 
     matching_uploads = [
         upload for upload in upload_list
@@ -526,19 +522,7 @@ async def get_accessible_file(user_id: int | None, file_public_id: str):
             if await can_user_access_shared_folder(user_id, folder):
                 return file
 
-<<<<<<< Updated upstream
-    file = await get_file_by_public_id(file_public_id)
-    if not file:
-        return None
-    if not is_public_file_accessible(file) and not await get_public_folder_ancestor(
-        await get_folder_by_id(file["folderID"])
-    ):
-        return None
-
-    return file
-=======
     return None
->>>>>>> Stashed changes
 
 
 async def get_file_shared_usernames(file_id: int) -> list[str]:
@@ -559,7 +543,6 @@ async def get_file_share_settings(user_id: int, file_public_id: str) -> dict:
 
 async def resolve_upload_folder_id(user_id: int, folder_public_id: str | None) -> int:
     if folder_public_id:
-<<<<<<< Updated upstream
         if folder_public_id == MEDIA_FOLDER_PUBLIC_ID:
             folder = await get_folder_by_public_id(MEDIA_FOLDER_PUBLIC_ID)
             if folder:
@@ -578,11 +561,6 @@ async def resolve_upload_folder_id(user_id: int, folder_public_id: str | None) -
         folder = await get_user_folder_id_by_public_id(user_id, folder_public_id)
         if not folder:
             raise ValueError("Upload folder was not found")
-=======
-        folder = await get_user_folder_by_public_id(user_id, folder_public_id)
-        if not folder:
-            raise ValueError("Folder was not found")
->>>>>>> Stashed changes
         return folder["folderID"]
 
     root_folder = await get_users_root_folder(user_id)
