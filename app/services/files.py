@@ -50,6 +50,7 @@ from app.services.app import DeleteItemsPayload, UploadChunkPayload
 from app.services.app import normalize_share_expires_at, parse_python_datetime, resolve_share_recipient_users
 from app.services.folders import can_user_access_shared_folder, get_public_folder_ancestor
 from app.security.passwords import hash_password
+from app.services.media_storage import get_media_directories, remove_empty_media_directories
 from config import DISKS, MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID, RUNTIME_DIR, tmpFolder
 
 
@@ -769,7 +770,7 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
                 continue
 
             delete_physical_file(file["serverPath"])
-            await delete_file_db(user_id, file["fileID"])
+            await delete_file_db(file["userID"], file["fileID"])
             await create_audit_log(
                 user_id,
                 "file.deleted",
@@ -781,7 +782,10 @@ async def delete_items(user_id: int, payload: DeleteItemsPayload) -> dict:
             processed_file_public_ids.add(file["publicID"])
 
         for nested_folder_id in reversed(folder_ids):
-            await delete_folder_db(user_id, nested_folder_id)
+            directories = await get_media_directories(nested_folder_id)
+            nested_folder = await get_folder_by_id(nested_folder_id)
+            await delete_folder_db(nested_folder["userID"], nested_folder_id)
+            remove_empty_media_directories(directories)
 
         await create_audit_log(
             user_id,

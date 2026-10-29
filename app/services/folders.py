@@ -47,6 +47,7 @@ from app.db.folders import (
 )
 from config import DISKS, MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID
 from app.security.passwords import hash_password
+from app.services.media_storage import create_media_directories
 from app.services.app import (
     StartUpResult,
     build_folder_path,
@@ -237,9 +238,14 @@ async def create_folder(folderName, userID, url: str):
         return 1
 
     folder = await create_folder_db(folderName, userID, parentFolderID)
+    folder_row = await get_folder_id_by_public_id(folder["publicID"])
+    try:
+        await create_media_directories(folder_row["folderID"])
+    except (OSError, ValueError) as error:
+        await delete_folder_by_id(folder_row["folderID"])
+        raise ValueError("Could not create the media directory on disk") from error
     parent_folder = await get_folder_by_id(parentFolderID)
     if parent_folder and await is_media_folder(parent_folder):
-        folder_row = await get_folder_id_by_public_id(folder["publicID"])
         folder = await update_folder_public_db(userID, folder_row["folderID"], True)
 
     await create_audit_log(

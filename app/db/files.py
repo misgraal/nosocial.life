@@ -57,7 +57,7 @@ async def get_public_media_files(media_dirs: list[str]):
 
 async def get_folders_child_files_for_delete(folderID):
     return await fetch_all(
-        "select fileID, publicID, serverPath from files where folderID=%s",
+        "select fileID, userID, publicID, serverPath from files where folderID=%s",
         (folderID,)
     )
 
@@ -175,6 +175,13 @@ async def update_file_folder_db(userID, fileID, folderID):
     return await fetch_one(
         f"select {FILE_SUMMARY_FIELDS} from files where userID=%s and fileID=%s",
         (userID, fileID,)
+    )
+
+
+async def update_file_storage_path_db(userID, fileID, serverPath, previewPath):
+    return await execute(
+        "update files set serverPath=%s, previewPath=%s where userID=%s and fileID=%s",
+        (serverPath, previewPath, userID, fileID,)
     )
 
 

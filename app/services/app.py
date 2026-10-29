@@ -27,6 +27,7 @@ from app.db.folders import (
     update_folder_public_db,
 )
 from config import MEDIA_FOLDER_NAME, MEDIA_FOLDER_PUBLIC_ID
+from app.services.media_storage import sync_media_storage
 
 @dataclass
 class StartUpResult:
@@ -307,7 +308,9 @@ async def rename_item(user_id: int, payload: RenameItemPayload) -> dict:
         if duplicate_folder:
             raise ValueError("Folder with this name already exists")
 
-        updated_folder = await update_folder_name_db(user_id, folder["folderID"], new_name)
+        renamed_folder = {**folder, "folderName": new_name}
+        async with sync_media_storage(folder["folderID"], overrides={folder["folderID"]: renamed_folder}):
+            updated_folder = await update_folder_name_db(user_id, folder["folderID"], new_name)
         await create_audit_log(
             user_id,
             "folder.renamed",
@@ -451,11 +454,13 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
         if folder["parentFolderID"] == destination_folder["folderID"]:
             continue
 
-        await update_folder_parent_db(user_id, folder["folderID"], destination_folder["folderID"])
-        folders_by_id[folder["folderID"]] = {
+        moved_folder = {
             **folder,
             "parentFolderID": destination_folder["folderID"],
         }
+        async with sync_media_storage(folder["folderID"], overrides={folder["folderID"]: moved_folder}):
+            await update_folder_parent_db(user_id, folder["folderID"], destination_folder["folderID"])
+        folders_by_id[folder["folderID"]] = moved_folder
         if is_media_folder_tree(folder["folderID"], folders_by_id):
             await make_folder_tree_public(user_id, folder["folderID"])
 
@@ -488,7 +493,8 @@ async def move_items(user_id: int, payload: MoveItemsPayload) -> dict:
         if file["folderID"] == destination_folder["folderID"]:
             continue
 
-        await update_file_folder_db(user_id, file["fileID"], destination_folder["folderID"])
+        async with sync_media_storage(destination_folder["folderID"], file=file):
+            await update_file_folder_db(user_id, file["fileID"], destination_folder["folderID"])
         if is_media_folder_tree(destination_folder["folderID"], folders_by_id):
             await update_file_public_db(user_id, file["fileID"], True)
 

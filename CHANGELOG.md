@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased - 2026-10-30
+
+### Fixed
+
+- Keep the Movies filesystem tree synchronized when folders are created, renamed, moved or deleted, including files moved into or out of the media library.
+- Update stored file and preview paths after media moves, reject physical filename collisions, and roll back moved files when the database operation fails.
+- Delete files and nested folders using their actual owners when removing a Movies subtree containing uploads from multiple users.
+- Rescan the existing MiniDLNA library on container startup with `-r` so changes made while the service was stopped are reconciled without resetting the library.
+
 ## Unreleased - 2026-05-01
 
 ### Added
